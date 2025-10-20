@@ -42,8 +42,6 @@ INSTALLED_APPS = [
     'django_filters',
     'users',
     'pedidos',
-    'pagamento',
-    'cardapio',
     'core',
     ]
 
