@@ -40,13 +40,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'django_filters',
-    'users',
-    'pedidos',
-    'core',
+    'apps.users',
+    'apps.pedidos',
+    'apps.core',
     ]
 
 
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = 'apps.users.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
