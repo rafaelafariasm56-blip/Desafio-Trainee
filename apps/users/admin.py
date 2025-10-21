@@ -1,3 +1,3 @@
 from django.contrib import admin
-from .models import User, PerfilCliente, PerfilLoja
+from .models import User, P
 
