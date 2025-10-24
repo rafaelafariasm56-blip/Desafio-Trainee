@@ -13,7 +13,7 @@ class DisponibilidadeSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class ProdutoSerializer(serializers.ModelSerializer):
-    disponibilidade = Disponibilidade(many=True, read_only=True)
+    disponibilidade = DisponibilidadeSerializer(many=True, read_only=True)
     loja = PerfilLojaSerializer(read_only=True)
 
     class Meta:

@@ -1,14 +1,14 @@
 from django.db import models
-from users.models import User
+from apps.users.models import User
 
 class LojaPerfil(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="perfil_loja")
     nome = models.CharField(max_length=255)
-    endereço = models.CharField(max_length=500, blank=True)
+    endereco = models.CharField(max_length=500, blank=True)  
     aberta = models.BooleanField(default=True)
 
     def __str__(self):
-        return self.name
+        return self.nome  
 
 class Produto(models.Model):
     loja = models.ForeignKey(LojaPerfil, on_delete=models.CASCADE, related_name="produtos")
@@ -18,6 +18,9 @@ class Produto(models.Model):
     active = models.BooleanField(default=True)
     criada_em = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.nome
+
 class Disponibilidade(models.Model):
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name="availabilities")
     data = models.DateField()
@@ -25,4 +28,4 @@ class Disponibilidade(models.Model):
     quantidade = models.PositiveIntegerField()
 
     class Meta:
-        unique_together = ("produtos", "datas")
+        unique_together = ("produto", "data")  

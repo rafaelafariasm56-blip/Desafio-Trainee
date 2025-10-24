@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Carrinho, CarrinhoItem, Pedido, PedidoItem
-from core.serializers import ProdutoSerializer
+from apps.core.serializers import ProdutoSerializer
 import uuid
 
 class CarrinhoItemSerializer(serializers.ModelSerializer):
@@ -12,7 +12,7 @@ class CarrinhoItemSerializer(serializers.ModelSerializer):
         read_only_fields = ("carrinho",)
 
 class CarrinhoSerializer(serializers.ModelSerializer):
-    items = CarrinhoItem(many=True, read_only=True)
+    items = CarrinhoItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Carrinho
@@ -26,7 +26,7 @@ class PedidoItemSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("order",)
 
-class OrderSerializer(serializers.ModelSerializer):
+class PedidoSerializer(serializers.ModelSerializer):
     items = CarrinhoItemSerializer(many=True, read_only=True)
 
     class Meta:

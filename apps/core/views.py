@@ -3,9 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Produto, Disponibilidade, LojaPerfil
+from apps.core.models import Produto, Disponibilidade, LojaPerfil
 from .serializers import ProdutoSerializer, DisponibilidadeSerializer, PerfilLojaSerializer
-from users.permissions import IsLoja
+from apps.users.permissions import IsLoja
 
 class ProdutoViewset(viewsets.ModelViewSet):
     queryset = Produto.objects.all().select_related("establishment")

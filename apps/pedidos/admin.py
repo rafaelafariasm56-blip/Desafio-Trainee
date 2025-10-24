@@ -11,9 +11,9 @@ class CarrinhoAdmin(admin.ModelAdmin):
 @admin.register(CarrinhoItem)
 class CarrinhoItemAdmin(admin.ModelAdmin):
     list_display = ("id", "carrinho", "produto", "data", "quantidade")
-    search_fields = ("carrinho__user__username", "produto__name")
+    search_fields = ("carrinho__user__username", "produto__nome")
     list_filter = ("data",)
-    autocomplete_fields = ("carrinho", "produto")
+    autocomplete_fields = ("produto",)  
 
 class PedidoItemInline(admin.TabularInline):
     model = PedidoItem
@@ -21,7 +21,7 @@ class PedidoItemInline(admin.TabularInline):
     readonly_fields = ("produto", "preco", "quantidade", "data")
 
 @admin.register(Pedido)
-class OrderAdmin(admin.ModelAdmin):
+class PedidoAdmin(admin.ModelAdmin):
     list_display = ("code", "user", "loja", "status", "total", "criado_em")
     list_filter = ("status", "criado_em", "loja")
     search_fields = ("code", "user__username", "loja__nome")
@@ -33,4 +33,4 @@ class PedidoItemAdmin(admin.ModelAdmin):
     list_display = ("id", "pedido", "produto", "quantidade", "preco", "data")
     search_fields = ("pedido__code", "produto__nome")
     list_filter = ("data",)
-    autocomplete_fields = ("pedido", "produto")
+    autocomplete_fields = ("produto",)  

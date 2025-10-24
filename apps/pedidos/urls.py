@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PedidoViewSet
+from apps.pedidos.views import PedidoViewSet
 
 router = DefaultRouter()
 router.register("", PedidoViewSet, basename="pedidos")

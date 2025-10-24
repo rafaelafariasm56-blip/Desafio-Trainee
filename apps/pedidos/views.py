@@ -5,10 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Sum, F
 from .models import Carrinho, CarrinhoItem, Pedido, PedidoItem
-from .serializers import CarrinhoSerializer, CarrinhoItemSerializer, PedidoSerializer
-from core.models import Disponibilidade, LojaPerfil
-from users.models import Pagamento
-from users.permissions import IsClient, IsLoja
+from apps.pedidos.serializers import CarrinhoSerializer, CarrinhoItemSerializer, PedidoSerializer
+from apps.core.models import Disponibilidade, LojaPerfil
+from apps.users.models import Pagamento
+from apps.users.permissions import IsClient, IsLoja
 from datetime import date
 
 class CarrinhoViewSet(viewsets.ViewSet):
@@ -106,7 +106,7 @@ class CarrinhoViewSet(viewsets.ViewSet):
 
         return Response({"pedido_id": order.id, "code": order.code}, status=201)
 
-class OrderViewSet(viewsets.ModelViewSet):
+class PedidoViewSet(viewsets.ModelViewSet):
     queryset = Pedido.objects.all().select_related("loja","user")
     serializer_class = PedidoSerializer
     permission_classes = [IsAuthenticated]

@@ -1,6 +1,6 @@
 from django.db import models
-from users.models import User, Pagamento
-from core.models import Produto, LojaPerfil
+from apps.users.models import User, Pagamento
+from apps.core.models import Produto, LojaPerfil
 
 class Carrinho(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
@@ -18,10 +18,10 @@ class CarrinhoItem(models.Model):
     quantidade = models.PositiveIntegerField()
 
     class Meta:
-        unique_together = ("cart", "product", "date")
+        unique_together = ("carrinho", "produto", "data")
 
     def __str__(self):
-        return f"{self.quantity}x {self.product.name} ({self.date})"
+        return f"{self.quantidade}x {self.produto.nome} ({self.data})"
 
 
 class Pedido(models.Model):
@@ -46,7 +46,7 @@ class Pedido(models.Model):
 
 
 class PedidoItem(models.Model):
-    pedidos = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name="items")
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name="items")
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
     data = models.DateField(help_text="Data de retirada/entrega")
     preco = models.DecimalField(max_digits=8, decimal_places=2)

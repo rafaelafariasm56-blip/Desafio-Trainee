@@ -17,9 +17,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include, re_path
 from rest_framework import permissions
+from rest_framework.response import Response
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework.views import APIView
 
 
 schema_view = get_schema_view(
@@ -31,15 +33,36 @@ schema_view = get_schema_view(
    public=True,
    permission_classes=(permissions.AllowAny,),
 )
+class APIRootView(APIView):
+    permission_classes = [permissions.AllowAny]
 
+    def get(self, request):
+        return Response({
+            "message": "API",
+            "version": "v1",
+            "docs": {
+                "swagger": request.build_absolute_uri("/swagger/"),
+                "redoc": request.build_absolute_uri("/redoc/"),
+            },
+            "apps": {
+                "users": request.build_absolute_uri("/api/users/"),
+                "core": request.build_absolute_uri("/api/core/"),
+                "pedidos": request.build_absolute_uri("/api/pedidos/"),
+            },
+            "auth": {
+                "token_obtain": request.build_absolute_uri("/api/auth/token/"),
+                "token_refresh": request.build_absolute_uri("/api/auth/token/refresh/"),
+            },
+        })
+    
 urlpatterns = [
+    path("", APIRootView.as_view(), name="api-root"),
     path("admin/", admin.site.urls),
-    path("api/users/", include("users.urls")),      
-    path("api/core/", include("core.urls")),        
-    path("api/pedidos/", include("pedidos.urls")),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("swagger.json", schema_view.without_ui(cache_timeout=0), name="schema-json"),
+    path("api/users/", include("apps.users.urls")),
+    path("api/core/", include("apps.core.urls")),
+    path("api/pedidos/", include("apps.pedidos.urls")),
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
     path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
