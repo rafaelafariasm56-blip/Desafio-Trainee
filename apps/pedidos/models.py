@@ -1,6 +1,8 @@
 from django.db import models
 from apps.users.models import User, Pagamento
 from apps.core.models import Produto, LojaPerfil
+import uuid
+
 
 class Carrinho(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
@@ -23,6 +25,8 @@ class CarrinhoItem(models.Model):
     def __str__(self):
         return f"{self.quantidade}x {self.produto.nome} ({self.data})"
 
+def gerar_code():
+    return uuid.uuid4().hex[:12].upper()
 
 class Pedido(models.Model):
     STATUS_CHOICES = [
@@ -39,10 +43,11 @@ class Pedido(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pendente")
     total = models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pagamento = models.ForeignKey(Pagamento, on_delete=models.SET_NULL, null=True, blank=True)
-    code = models.CharField(max_length=12, unique=True)
+    code = models.CharField(max_length=12, unique=True, default=gerar_code)
 
     def __str__(self):
         return f"Pedido #{self.code} - {self.user.username} ({self.status})"
+
 
 
 class PedidoItem(models.Model):

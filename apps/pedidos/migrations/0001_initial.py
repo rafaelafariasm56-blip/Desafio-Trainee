@@ -4,6 +4,7 @@ import django.db.models.deletion
 import uuid
 from django.conf import settings
 from django.db import migrations, models
+import uuid; uuid.uuid4()
 
 
 class Migration(migrations.Migration):
