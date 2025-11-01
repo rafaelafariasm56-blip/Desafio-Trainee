@@ -1,8 +1,8 @@
 from rest_framework import viewsets, status, filters, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from apps.users.models import User
-from .serializers import UserRegisterSerializer, PagamentoSerializer, UserSerializer
+from apps.users.models import User, Pagamento
+from apps.users.serializers import UserRegisterSerializer, PagamentoSerializer, UserSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -23,14 +23,14 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['username', 'email']  #Permite busca por username e email.
+    search_fields = ['username', 'email']  
 
 class PagamentoMetodoViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return PagamentoSerializer.objects.filter(user=self.request.user)
+        return Pagamento.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

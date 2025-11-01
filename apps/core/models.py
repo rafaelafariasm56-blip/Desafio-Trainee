@@ -34,7 +34,7 @@ class CardapioItem(models.Model):
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
     preco = models.DecimalField(max_digits=8, decimal_places=2)
     estoque = models.PositiveIntegerField(default=0)
-    disponivel = models.BooleansField(default=True)
+    disponivel = models.BooleanField(default=True)
     dias_disponiveis = models.JSONField(default=list, help_text="Lista de dias disponíveis (ex: ['segunda', 'sexta'])")
 
     def __str__(self):
