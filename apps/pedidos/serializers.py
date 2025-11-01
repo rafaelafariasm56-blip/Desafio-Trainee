@@ -19,15 +19,16 @@ class CarrinhoSerializer(serializers.ModelSerializer):
         fields = ("id", "user", "items")
 
 class PedidoItemSerializer(serializers.ModelSerializer):
-    product = ProdutoSerializer(read_only=True)
+    produto = ProdutoSerializer(read_only=True)
 
     class Meta:
         model = PedidoItem
         fields = "__all__"
-        read_only_fields = ("order",)
+        read_only_fields = ("pedido",)
+
 
 class PedidoSerializer(serializers.ModelSerializer):
-    items = CarrinhoItemSerializer(many=True, read_only=True)
+    items = PedidoItemSerializer(many=True, read_only=True, source="items")
 
     class Meta:
         model = Pedido

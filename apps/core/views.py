@@ -51,6 +51,7 @@ class UserViewSet(viewsets.ModelViewSet):
         # Cliente só vê loja
         return User.objects.filter(loja=True)
 
+
 class ProdutoViewSet(viewsets.ModelViewSet):
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer

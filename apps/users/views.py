@@ -1,6 +1,5 @@
 from rest_framework import viewsets, status, filters, permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
-from rest_framework.response import Response
 from apps.users.models import User, Pagamento
 from apps.users.serializers import UserRegisterSerializer, PagamentoSerializer, UserSerializer
 from rest_framework_simplejwt.tokens import RefreshToken

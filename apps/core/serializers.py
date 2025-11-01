@@ -1,22 +1,37 @@
 from rest_framework import serializers
-from .models import LojaPerfil, Produto, Disponibilidade
-
-class PerfilLojaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LojaPerfil
-        fields = "__all__"
-        read_only_fields = ("user",)
-
-class DisponibilidadeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Disponibilidade
-        fields = "__all__"
+from apps.core.models import LojaPerfil, Produto, Cardapio, CardapioItem
+from datetime import datetime
 
 class ProdutoSerializer(serializers.ModelSerializer):
-    disponibilidade = DisponibilidadeSerializer(many=True, read_only=True)
-    loja = PerfilLojaSerializer(read_only=True)
+    loja = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Produto
-        fields = "__all__"
-        read_only_fields = ("loja", "criada_em")
+        fields = ['id', 'nome', 'descricao', 'slug', 'active', 'criada_em', 'loja']
+
+
+class CardapioItemSerializer(serializers.ModelSerializer):
+    produto = ProdutoSerializer(read_only=True)
+    produto_id = serializers.PrimaryKeyRelatedField(queryset=Produto.objects.all(), source="produto", write_only=True)
+
+    class Meta:
+        model = CardapioItem
+        fields = ['id', 'produto', 'produto_id', 'preco', 'estoque', 'disponivel', 'dias_disponiveis']
+
+
+class CardapioSerializer(serializers.ModelSerializer):
+    itens = CardapioItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Cardapio
+        fields = ['id', 'nome', 'data_criacao', 'loja', 'itens']
+        read_only_fields = ['loja', 'data_criacao']
+
+
+class LojaSerializer(serializers.ModelSerializer):
+    produtos = ProdutoSerializer(many=True, read_only=True)
+    cardapios = CardapioSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LojaPerfil
+        fields = ['id', 'nome', 'endereco', 'aberta', 'produtos', 'cardapios']

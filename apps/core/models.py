@@ -11,6 +11,7 @@ class LojaPerfil(models.Model):
         return self.nome  
 
 class Produto(models.Model):
+    nome = models.CharField(max_length=100)
     loja = models.ForeignKey(LojaPerfil, on_delete=models.CASCADE)
     descricao = models.TextField(blank=True)
     slug = models.SlugField(unique=True)
