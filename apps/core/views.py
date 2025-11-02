@@ -1,11 +1,10 @@
 from rest_framework import viewsets, permissions, filters
 from rest_framework.response import Response
 from apps.users.models import User
-from apps.core.models import Produto, LojaPerfil
+from apps.core.models import Produto, LojaPerfil, Cardapio
 from apps.users.serializers import UserSerializer, UserRegisterSerializer
 from apps.users.permissions import IsLoja, IsClient, IsDonoeReadOnly
-from apps.core.serializers import ProdutoSerializer, CardapioSerializer, CardapioItemSerializer
-from apps.pedidos.models import Pedido
+from apps.core.serializers import ProdutoSerializer, CardapioSerializer, CardapioItemSerializer, LojaSerializer
 from apps.pedidos.serializers import PedidoSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -52,17 +51,32 @@ class UserViewSet(viewsets.ModelViewSet):
         return User.objects.filter(loja=True)
 
 
-class ProdutoViewSet(viewsets.ModelViewSet):
-    queryset = Produto.objects.all()
+class ProdutoViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Produto.objects.filter(active=True)
     serializer_class = ProdutoSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nome', 'descricao', 'loja__nome']
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsDonoeReadOnly]
-    def perform_create(self, serializer):
-        loja = LojaPerfil.objects.get(user=self.request.user)
-        serializer.save(loja=loja)
+    ordering_fields = ['criada_em', 'nome']
+    permission_classes = [permissions.AllowAny]
 
 
 class PedidoViewSet(viewsets.ModelViewSet):
     serializer_class = PedidoSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class LojaViewSet(viewsets.ReadOnlyModelViewSet):
+ 
+    queryset = LojaPerfil.objects.filter(aberta=True)
+    serializer_class = LojaSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nome', 'endereco', 'user__username']
+    ordering_fields = ['nome']
+    permission_classes = [permissions.AllowAny]
+
+class CardapioViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Cardapio.objects.all()
+    serializer_class = CardapioSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nome', 'loja__username']
+    ordering_fields = ['data_criacao', 'nome']
