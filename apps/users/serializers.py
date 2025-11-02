@@ -52,7 +52,6 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
