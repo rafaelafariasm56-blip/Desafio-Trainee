@@ -26,24 +26,29 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+    
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+    password = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'})
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'nome', 'loja', 'celular']
+        fields = ['id', 'username', 'email', 'nome', 'loja', 'celular', 'password']
         extra_kwargs = {
             'email': {'required': False},
             'nome': {'required': False},
             'loja': {'required': False},
             'celular': {'required': False},
+            'password': {'write_only': True},
         }
 
     def update(self, instance, validated_data):
-        instance.email = validated_data.get('email', instance.email)
-        instance.nome = validated_data.get('nome', instance.nome)
-        instance.loja = validated_data.get('loja', instance.loja)
-        instance.celular = validated_data.get('celular', instance.celular)
+        for field in ['email', 'nome', 'loja', 'celular']:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
 
         password = validated_data.get('password', None)
         if password:
@@ -51,7 +56,6 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento

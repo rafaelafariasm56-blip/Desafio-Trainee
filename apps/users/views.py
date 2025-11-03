@@ -1,21 +1,22 @@
-from rest_framework import viewsets, status, filters, permissions
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
-from apps.users.models import User, Pagamento
-from apps.users.serializers import PagamentoSerializer, UserSerializer, UserRegisterSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import viewsets, status, permissions, filters
 from rest_framework.response import Response
-from django.contrib.auth import authenticate
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import action
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from apps.users.models import User, Pagamento
+from apps.users.serializers import UserRegisterSerializer, UserSerializer, PagamentoSerializer, LoginSerializer
 
-    
-class UserViewSet(viewsets.ModelViewSet):    
+
+class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['username', 'email']  
+    search_fields = ["username", "email"]
 
-    @action(detail=False, methods=["post"], url_path="register")
+    # 🔹 Registro
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="register")
     def register(self, request):
         serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -30,13 +31,18 @@ class UserViewSet(viewsets.ModelViewSet):
             }
         }, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=["post"], url_path="login")
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="login", serializer_class=LoginSerializer)
     def login(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-        user = authenticate(username=username, password=password)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = authenticate(
+            username=serializer.validated_data["username"],
+            password=serializer.validated_data["password"]
+        )
         if not user:
-            return Response({"detail": "Credenciais inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"detail": "Credenciais inválidas."}, status=status.HTTP_401_UNAUTHORIZED)
+
         refresh = RefreshToken.for_user(user)
         return Response({
             "message": "Login realizado com sucesso!",
@@ -45,7 +51,8 @@ class UserViewSet(viewsets.ModelViewSet):
                 "refresh": str(refresh),
                 "access": str(refresh.access_token)
             }
-        })
+        }, status=status.HTTP_200_OK)
+
 class PagamentoMetodoViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
