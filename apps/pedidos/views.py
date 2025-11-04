@@ -25,18 +25,15 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # Cliente só vê seus próprios pedidos
         if not user.loja:
             return Pedido.objects.filter(cliente=user)
 
-        # Loja pode ver pedidos feitos para ela (opcional)
         return Pedido.objects.filter(loja__user=user)
 
     def perform_create(self, serializer):
         serializer.save(cliente=self.request.user)
 
     def perform_destroy(self, instance):
-        # Cliente só pode cancelar seu próprio pedido
         if instance.cliente != self.request.user:
             raise PermissionDenied("Você não pode cancelar este pedido.")
         instance.delete()

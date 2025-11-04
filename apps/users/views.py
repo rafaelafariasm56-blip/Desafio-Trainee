@@ -10,6 +10,8 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 
+
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -17,7 +19,6 @@ class UserViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["username", "email"]
 
-    # 🔹 Registro
     @action(
         detail=False,
         methods=["post"],
@@ -39,7 +40,6 @@ class UserViewSet(viewsets.ModelViewSet):
             }
         }, status=status.HTTP_201_CREATED)
 
-    # 🔹 Login
     @action(
         detail=False,
         methods=["post"],
@@ -60,13 +60,28 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Credenciais inválidas."}, status=status.HTTP_401_UNAUTHORIZED)
 
         refresh = RefreshToken.for_user(user)
+
+        if getattr(user, "loja", False):
+            painel = {
+                "cardapio": reverse("cardapio-list", request=request),
+                "pedidos_em_andamento": reverse("pedidos-list", request=request),
+            }
+        else:
+            painel = {
+                "area_de_vendas": reverse("produtos-list", request=request),
+                "buscar_por_loja": reverse("lojas-list", request=request),
+                "metodos_de_pagamento": reverse("pagamentometodo-list", request=request),
+                "historico_de_pedidos": reverse("pedidos-list", request=request),
+            }
+
         return Response({
-            "message": "Login realizado com sucesso!",
+            "message": f"Login realizado com sucesso! Bem-vindo(a), {user.username}",
             "user": UserSerializer(user).data,
             "tokens": {
                 "refresh": str(refresh),
                 "access": str(refresh.access_token)
-            }
+            },
+            "painel": painel
         }, status=status.HTTP_200_OK)
 
 class PagamentoMetodoViewSet(viewsets.ModelViewSet):
@@ -90,7 +105,6 @@ class ApiRootView(APIView):
         """
         base = {}
 
-        # Sempre visível
         base["register"] = reverse("users-registrar", request=request)
         base["login"] = reverse("users-login", request=request)
 
@@ -98,15 +112,13 @@ class ApiRootView(APIView):
         if not user.is_authenticated:
             return Response(base)
 
-        # Se for loja
         if user.loja:
             base["cardapio"] = reverse("cardapio-list", request=request)
             base["pedidos_em_andamento"] = reverse("pedidos-list", request=request)
         else:
-            # Se for cliente final
             base["area_de_vendas"] = reverse("produtos-list", request=request)
             base["buscar_por_loja"] = reverse("lojas-list", request=request)
-            base["metodos_de_pagamento"] = reverse("payments-list", request=request)
+            base["metodos_de_pagamento"] = reverse("pagamentometodo-list", request=request)
             base["historico_de_pedidos"] = reverse("pedidos-list", request=request)
 
         return Response(base)

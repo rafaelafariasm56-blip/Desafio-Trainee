@@ -34,17 +34,14 @@ class ApiRootView(APIView):
 
         user = request.user
         if not user.is_authenticated:
-            # Usuário anônimo: apenas login e registro
             return Response(base)
 
-        # Se for uma loja (usuário de tipo loja)
         if getattr(user, "loja", False):
             base.update({
                 "meu_cardapio": reverse("cardapios-list", request=request),
                 "pedidos_em_andamento": reverse("pedidos-list", request=request),
             })
         else:
-            # Se for cliente final
             base.update({
                 "area_de_vendas": reverse("produtos-list", request=request),
                 "buscar_por_loja": reverse("lojas-list", request=request),
