@@ -6,6 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from apps.users.models import User, Pagamento
 from apps.users.serializers import UserRegisterSerializer, UserSerializer, PagamentoSerializer, LoginSerializer
+from rest_framework.reverse import reverse
+from rest_framework.views import APIView
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -16,7 +18,13 @@ class UserViewSet(viewsets.ModelViewSet):
     search_fields = ["username", "email"]
 
     # 🔹 Registro
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="register")
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[AllowAny],
+        url_path="register",
+        url_name="register"
+    )
     def register(self, request):
         serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -31,7 +39,15 @@ class UserViewSet(viewsets.ModelViewSet):
             }
         }, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="login", serializer_class=LoginSerializer)
+    # 🔹 Login
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[AllowAny],
+        url_path="login",
+        url_name="login",
+        serializer_class=LoginSerializer
+    )
     def login(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -62,3 +78,35 @@ class PagamentoMetodoViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+class ApiRootView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        """
+        Retorna endpoints diferentes para:
+        - Usuários não autenticados
+        - Lojas autenticadas
+        - Clientes autenticados
+        """
+        base = {}
+
+        # Sempre visível
+        base["register"] = reverse("users-registrar", request=request)
+        base["login"] = reverse("users-login", request=request)
+
+        user = request.user
+        if not user.is_authenticated:
+            return Response(base)
+
+        # Se for loja
+        if user.loja:
+            base["cardapio"] = reverse("cardapio-list", request=request)
+            base["pedidos_em_andamento"] = reverse("pedidos-list", request=request)
+        else:
+            # Se for cliente final
+            base["area_de_vendas"] = reverse("produtos-list", request=request)
+            base["buscar_por_loja"] = reverse("lojas-list", request=request)
+            base["metodos_de_pagamento"] = reverse("payments-list", request=request)
+            base["historico_de_pedidos"] = reverse("pedidos-list", request=request)
+
+        return Response(base)

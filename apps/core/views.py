@@ -6,6 +6,7 @@ from apps.users.serializers import UserSerializer, UserRegisterSerializer
 from apps.users.permissions import IsLoja, IsClient, IsDonoeReadOnly
 from apps.core.serializers import ProdutoSerializer, CardapioSerializer, CardapioItemSerializer, LojaSerializer
 from apps.pedidos.serializers import PedidoSerializer
+from apps.core.permissions import ELojaOuSomenteLeitura
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -74,9 +75,19 @@ class LojaViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['nome']
     permission_classes = [permissions.AllowAny]
 
-class CardapioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Cardapio.objects.all()
+class CardapioViewSet(viewsets.ModelViewSet):
     serializer_class = CardapioSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, ELojaOuSomenteLeitura]
+    filter_backends = [filters.SearchFilter]
     search_fields = ['nome', 'loja__username']
-    ordering_fields = ['data_criacao', 'nome']
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if not user.is_authenticated or not user.loja:
+            return Cardapio.objects.all()
+
+        return Cardapio.objects.filter(loja=user)
+
+    def perform_create(self, serializer):
+        serializer.save(loja=self.request.user)

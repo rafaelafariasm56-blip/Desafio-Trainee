@@ -7,6 +7,8 @@ from apps.core.models import LojaPerfil
 from apps.pedidos.serializers import CarrinhoSerializer
 from apps.pedidos.models import Carrinho
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+
 
 class CarrinhoViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsClient]
@@ -18,16 +20,23 @@ class CarrinhoViewSet(viewsets.ViewSet):
 
 
 class PedidoViewSet(viewsets.ModelViewSet):
-    queryset = Pedido.objects.all().select_related("loja", "user")
     serializer_class = PedidoSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        if user.loja:
-            est = LojaPerfil.objects.get(user=user)
-            return Pedido.objects.filter(
-                loja=est,
-                status__in=["pendente", "preparando", "a caminho"]
-            ).order_by("criado_em")
-        return Pedido.objects.filter(user=user).order_by("criado_em")
+        # Cliente só vê seus próprios pedidos
+        if not user.loja:
+            return Pedido.objects.filter(cliente=user)
+
+        # Loja pode ver pedidos feitos para ela (opcional)
+        return Pedido.objects.filter(loja__user=user)
+
+    def perform_create(self, serializer):
+        serializer.save(cliente=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Cliente só pode cancelar seu próprio pedido
+        if instance.cliente != self.request.user:
+            raise PermissionDenied("Você não pode cancelar este pedido.")
+        instance.delete()
