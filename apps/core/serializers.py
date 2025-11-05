@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.core.models import LojaPerfil, Produto, Cardapio, CardapioItem
+from apps.core.models import LojaPerfil, Produto, Cardapio
 from datetime import datetime
 
 class ProdutoSerializer(serializers.ModelSerializer):
@@ -10,23 +10,13 @@ class ProdutoSerializer(serializers.ModelSerializer):
         fields = ['id', 'nome', 'descricao', 'slug', 'active', 'criada_em', 'loja']
 
 
-class CardapioItemSerializer(serializers.ModelSerializer):
-    produto = ProdutoSerializer(read_only=True)
-    produto_id = serializers.PrimaryKeyRelatedField(queryset=Produto.objects.all(), source="produto", write_only=True)
-
-    class Meta:
-        model = CardapioItem
-        fields = ['id', 'produto', 'produto_id', 'preco', 'estoque', 'disponivel', 'dias_disponiveis']
-
-
 class CardapioSerializer(serializers.ModelSerializer):
-    itens = CardapioItemSerializer(many=True, read_only=True)
+    produtos = ProdutoSerializer(many=True, read_only=True)
 
     class Meta:
         model = Cardapio
-        fields = ['id', 'nome', 'data_criacao', 'loja', 'itens']
-        read_only_fields = ['loja', 'data_criacao']
-
+        fields = ['id', 'loja', 'produtos']
+        read_only_fields = ['loja']
 
 class LojaSerializer(serializers.ModelSerializer):
     produtos = ProdutoSerializer(many=True, read_only=True)

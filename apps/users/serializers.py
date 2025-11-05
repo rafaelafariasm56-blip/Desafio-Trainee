@@ -56,8 +56,22 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
-        fields = "__all__"
-        read_only_fields = ("user",)
+        fields = [
+            'id',
+            'metodo',
+            'nome_no_cartao',
+            'numero_cartao',
+            'validade',
+            'cvv',
+            'chave_pix',
+            'observacao',
+            'ativo',
+        ]
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        return Pagamento.objects.create(user=user, **validated_data)

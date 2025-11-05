@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, permissions, filters
+from rest_framework import viewsets, status, permissions, filters, generics
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import action
@@ -70,7 +70,7 @@ class UserViewSet(viewsets.ModelViewSet):
             painel = {
                 "area_de_vendas": reverse("produtos-list", request=request),
                 "buscar_por_loja": reverse("lojas-list", request=request),
-                "metodos_de_pagamento": reverse("pagamentometodo-list", request=request),
+                "metodos_de_pagamento": reverse("pagamentos-list", request=request),
                 "historico_de_pedidos": reverse("pedidos-list", request=request),
             }
 
@@ -84,41 +84,21 @@ class UserViewSet(viewsets.ModelViewSet):
             "painel": painel
         }, status=status.HTTP_200_OK)
 
-class PagamentoMetodoViewSet(viewsets.ModelViewSet):
+
+class PagamentoListCreateView(generics.ListCreateAPIView):
     serializer_class = PagamentoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Pagamento.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-class ApiRootView(APIView):
-    permission_classes = [permissions.AllowAny]
 
-    def get(self, request, *args, **kwargs):
-        """
-        Retorna endpoints diferentes para:
-        - Usuários não autenticados
-        - Lojas autenticadas
-        - Clientes autenticados
-        """
-        base = {}
 
-        base["register"] = reverse("users-registrar", request=request)
-        base["login"] = reverse("users-login", request=request)
+class PagamentoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PagamentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-        user = request.user
-        if not user.is_authenticated:
-            return Response(base)
-
-        if user.loja:
-            base["cardapio"] = reverse("cardapio-list", request=request)
-            base["pedidos_em_andamento"] = reverse("pedidos-list", request=request)
-        else:
-            base["area_de_vendas"] = reverse("produtos-list", request=request)
-            base["buscar_por_loja"] = reverse("lojas-list", request=request)
-            base["metodos_de_pagamento"] = reverse("pagamentometodo-list", request=request)
-            base["historico_de_pedidos"] = reverse("pedidos-list", request=request)
-
-        return Response(base)
+    def get_queryset(self):
+        return Pagamento.objects.filter(user=self.request.user)

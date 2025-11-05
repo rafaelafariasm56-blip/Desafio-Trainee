@@ -12,10 +12,22 @@ class User(AbstractUser):
         return self.username
 
 class Pagamento(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pagamento")
-    nome = models.CharField(max_length=255)
-    detalhes = models.JSONField(blank=True, null=True)
-    active = models.BooleanField(default=True)
+    METODO_CHOICES = [
+        ('cartao', 'Cartão de Crédito/Débito'),
+        ('pix', 'Pix'),
+        ('dinheiro', 'Dinheiro'),
+        ('outro', 'Outro'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pagamentos")
+    metodo = models.CharField(max_length=20, choices=METODO_CHOICES)
+    nome_no_cartao = models.CharField(max_length=100, blank=True, null=True)
+    numero_cartao = models.CharField(max_length=20, blank=True, null=True)
+    validade = models.CharField(max_length=7, blank=True, null=True)  # MM/AAAA
+    cvv = models.CharField(max_length=4, blank=True, null=True)
+    chave_pix = models.CharField(max_length=255, blank=True, null=True)
+    observacao = models.CharField(max_length=255, blank=True, null=True)
+    ativo = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.name} ({self.user.username})"
+        return f"{self.get_metodo_display()} - {self.user.username}"

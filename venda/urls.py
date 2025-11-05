@@ -17,51 +17,34 @@ schema_view = get_schema_view(
    permission_classes=(permissions.AllowAny,),
 )
 
+
 class ApiRootView(APIView):
     """
-    API Root — mostra endpoints diferentes para:
-    - usuários não autenticados
-    - lojas autenticadas
-    - clientes autenticados
+    API Root — mostra apenas endpoints públicos.
+    (login e register)
     """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, *args, **kwargs):
-        base = {
+        return Response({
             "register": reverse("users-register", request=request),
             "login": reverse("users-login", request=request),
-        }
-
-        user = request.user
-        if not user.is_authenticated:
-            return Response(base)
-
-        if getattr(user, "loja", False):
-            base.update({
-                "meu_cardapio": reverse("cardapios-list", request=request),
-                "pedidos_em_andamento": reverse("pedidos-list", request=request),
-            })
-        else:
-            base.update({
-                "area_de_vendas": reverse("produtos-list", request=request),
-                "buscar_por_loja": reverse("lojas-list", request=request),
-                "metodos_de_pagamento": reverse("pagamentometodo-list", request=request),
-                "historico_de_pedidos": reverse("pedidos-list", request=request),
-            })
-
-        return Response(base)
+        })
 
 
 urlpatterns = [
     path("", ApiRootView.as_view(), name="api-root"),
     path("admin/", admin.site.urls),
 
+    # Django REST Framework auth interface (login/logout)
+    path("api-auth/", include("rest_framework.urls")),
+
     # Apps principais
     path("api/users/", include("apps.users.urls")),
     path("api/core/", include("apps.core.urls")),
     path("api/pedidos/", include("apps.pedidos.urls")),
 
-    # Documentação opcional
+    # Documentação
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
     path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]

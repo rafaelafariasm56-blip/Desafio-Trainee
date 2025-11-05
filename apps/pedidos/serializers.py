@@ -28,12 +28,18 @@ class PedidoItemSerializer(serializers.ModelSerializer):
 
 
 class PedidoSerializer(serializers.ModelSerializer):
-    items = PedidoItemSerializer(many=True, read_only=True, source="items")
-
     class Meta:
         model = Pedido
-        fields = "__all__"
-        read_only_fields = ("code", "criado_em", "status", "total", "loja")
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'criado_em', 'total']
 
     def generate_code(self):
         return uuid.uuid4().hex[:12].upper()
+    
+class PedidoHistoricoSerializer(serializers.ModelSerializer):
+    items = PedidoItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Pedido
+        fields = ['id', 'criado_em', 'items', 'total']
+        read_only_fields = fields

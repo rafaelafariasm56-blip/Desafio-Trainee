@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from apps.users.models import User
-from .models import LojaPerfil, Produto, Cardapio, CardapioItem
+from .models import LojaPerfil, Produto, Cardapio
 
 
 @admin.register(User)
@@ -61,44 +61,9 @@ class ProdutoAdmin(admin.ModelAdmin):
     autocomplete_fields = ("loja",)
 
 
-
-class CardapioItemInline(admin.TabularInline):
-    model = CardapioItem
-    extra = 0
-    fields = ("produto", "preco", "estoque", "disponivel", "dias_disponiveis")
-    autocomplete_fields = ("produto",)
-    show_change_link = True
-
-
-
 @admin.register(Cardapio)
 class CardapioAdmin(admin.ModelAdmin):
-    list_display = ("nome", "get_loja", "data_criacao")
-    list_filter = ("data_criacao",)
-    search_fields = ("nome", "loja__username")
-    readonly_fields = ("data_criacao",)
-    inlines = [CardapioItemInline]
-    ordering = ("-data_criacao",)
-    fieldsets = (
-        ("Cardápio", {"fields": ("loja", "nome")}),
-        ("Metadados", {"fields": ("data_criacao",)}),
-    )
-    autocomplete_fields = ("loja",)
-
-    def get_loja(self, obj):
-        return getattr(obj.loja, "username", None)
-    get_loja.short_description = "Loja"
-
-
-@admin.register(CardapioItem)
-class CardapioItemAdmin(admin.ModelAdmin):
-    list_display = ("produto", "get_cardapio", "preco", "estoque", "disponivel")
-    list_filter = ("disponivel", "cardapio__loja")
-    search_fields = ("produto__nome", "cardapio__nome", "cardapio__loja__username")
-    ordering = ("-cardapio__data_criacao", "produto__nome")
-    fields = ("cardapio", "produto", "preco", "estoque", "disponivel", "dias_disponiveis")
-    autocomplete_fields = ("cardapio", "produto")
-
-    def get_cardapio(self, obj):
-        return obj.cardapio.nome
-    get_cardapio.short_description = "Cardápio"
+    list_display = ('id', 'loja')
+    search_fields = ('loja__nome',)
+    readonly_fields = ('loja',)
+    ordering = ('id',)

@@ -1,9 +1,13 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
-from django.urls import path, include
-from apps.users.views import UserViewSet, PagamentoMetodoViewSet
+from apps.users.views import UserViewSet, PagamentoListCreateView, PagamentoDetailView
 
 router = DefaultRouter()
-router.register(r'', UserViewSet, basename='users')
-router.register(r'pagamentos', PagamentoMetodoViewSet, basename='pagamentometodo')
+router.register(r'users', UserViewSet, basename='users')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('pagamentos/', PagamentoListCreateView.as_view(), name='pagamentos-list'),
+    path('pagamentos/<int:pk>/', PagamentoDetailView.as_view(), name='pagamentos-detail'),
+]
+
+urlpatterns += router.urls

@@ -22,21 +22,8 @@ class Produto(models.Model):
         return self.nome
     
 class Cardapio(models.Model):
-    loja = models.ForeignKey(User, on_delete=models.CASCADE)
-    nome = models.CharField(max_length=100)
-    data_criacao = models.DateTimeField(auto_now_add=True)
+    loja = models.OneToOneField(LojaPerfil, on_delete=models.CASCADE, related_name="cardapio")
+    produtos = models.ManyToManyField('Produto', related_name='cardapios')
 
     def __str__(self):
-        return f"{self.nome} ({self.loja.username})"
-    
-
-class CardapioItem(models.Model):
-    cardapio = models.ForeignKey(Cardapio, on_delete=models.CASCADE)
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
-    preco = models.DecimalField(max_digits=8, decimal_places=2)
-    estoque = models.PositiveIntegerField(default=0)
-    disponivel = models.BooleanField(default=True)
-    dias_disponiveis = models.JSONField(default=list, help_text="Lista de dias disponíveis (ex: ['segunda', 'sexta'])")
-
-    def __str__(self):
-        return f"{self.produto.nome} - {self.cardapio.nome}"
+        return f"Cardápio de {self.loja.nome}"
