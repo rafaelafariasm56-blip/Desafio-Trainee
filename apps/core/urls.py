@@ -4,6 +4,6 @@ from apps.core.views import LojaViewSet, ProdutoViewSet, CardapioViewSet
 router = DefaultRouter()
 router.register(r'lojas', LojaViewSet, basename='lojas')
 router.register(r'produtos', ProdutoViewSet, basename='produtos')
-router.register(r'cardapio', CardapioViewSet, basename='cardapio')
+router.register(r'cardapio', ProdutoViewSet, basename='cardapio')
 
 urlpatterns = router.urls

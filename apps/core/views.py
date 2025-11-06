@@ -1,62 +1,41 @@
-from rest_framework import viewsets, permissions, filters
-from rest_framework.response import Response
+from rest_framework import viewsets, permissions, filters, status
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
-
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from apps.users.models import User
 from apps.core.models import Produto, LojaPerfil, Cardapio
-from apps.users.serializers import UserSerializer, UserRegisterSerializer
+from apps.users.serializers import UserSerializer, UserRegisterSerializer, LoginSerializer
 from apps.users.permissions import IsDonoeReadOnly
-from apps.core.serializers import ProdutoSerializer, CardapioSerializer, LojaSerializer
-from apps.pedidos.serializers import PedidoSerializer
+from apps.core.serializers import ProdutoSerializer, LojaSerializer, CardapioSerializer
+from rest_framework.reverse import reverse
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
 
-
-class UserViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para CRUD de usuários (clientes e lojas).
-    Permissões variam conforme o tipo de usuário.
-    """
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ["username", "email", "nome"]
-
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            permission_classes = [permissions.IsAuthenticated]
-        elif self.action in ["update", "partial_update", "destroy"]:
-            permission_classes = [permissions.IsAuthenticated, IsDonoeReadOnly]
-        else:
-            permission_classes = [permissions.AllowAny]
-        return [perm() for perm in permission_classes]
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return UserRegisterSerializer
-        return UserSerializer
-
-    def get_queryset(self):
-        user = self.request.user
-
-        if not user.is_authenticated:
-            return User.objects.none()
-        if getattr(user, "is_establishment", False):
-            return User.objects.filter(loja=False)
-        return User.objects.filter(loja=True)
-
-
-class ProdutoViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Endpoint público de produtos.
-    Apenas leitura (clientes podem ver o que as lojas oferecem).
-    """
+class ProdutoViewSet(viewsets.ModelViewSet):
     queryset = Produto.objects.filter(active=True)
     serializer_class = ProdutoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nome', 'descricao', 'loja__nome']
-    ordering_fields = ['criada_em', 'nome']
-    permission_classes = [permissions.AllowAny]
+    ordering_fields = ['criada_em', 'nome', 'preco']
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        if not user.loja:
+            raise PermissionDenied("Apenas perfis de loja podem adicionar produtos.")
+
+        try:
+            loja = LojaPerfil.objects.get(user=user)
+        except LojaPerfil.DoesNotExist:
+            raise PermissionDenied("Perfil de loja não encontrado. Crie um perfil antes de adicionar produtos.")
+
+        serializer.save(loja=loja)
 
 class LojaViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -71,19 +50,23 @@ class LojaViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class CardapioViewSet(viewsets.ModelViewSet):
-    serializer_class = CardapioSerializer
-    queryset = Cardapio.objects.all()
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
-
+    serializer_class = ProdutoSerializer
+    queryset = Produto.objects.all()
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         user = self.request.user
-        if hasattr(user, "loja"):
-            return Cardapio.objects.filter(loja=user.loja)
-        raise PermissionDenied("Apenas lojas podem acessar o cardápio.")
+        if user.loja and hasattr(user, "lojaperfil"):
+            return Produto.objects.filter(loja=user.lojaperfil)
+        return Produto.objects.none()
 
     def perform_create(self, serializer):
         user = self.request.user
-        if hasattr(user, "loja"):
-            serializer.save(loja=user.loja)
-        else:
-            raise PermissionDenied("Apenas lojas podem cadastrar produtos.")
+        if not user.loja:
+            raise PermissionDenied("Apenas perfis de loja podem adicionar produtos.")
+
+        try:
+            loja = LojaPerfil.objects.get(user=user)
+        except LojaPerfil.DoesNotExist:
+            raise PermissionDenied("Perfil de loja não encontrado.")
+
+        serializer.save(loja=loja)

@@ -1,11 +1,6 @@
 from rest_framework import permissions
 
 class ELojaOuSomenteLeitura(permissions.BasePermission):
-    """
-    Permite que apenas usuários do tipo loja alterem seus próprios cardápios.
-    Clientes podem apenas visualizar (GET, HEAD, OPTIONS).
-    """
-
     def tem_permissao(self, pedido, visualizacao):
         if pedido.method in permissions.SAFE_METHODS:
             return True

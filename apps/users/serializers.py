@@ -73,5 +73,4 @@ class PagamentoSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        return Pagamento.objects.create(user=user, **validated_data)
+        return Pagamento.objects.create(**validated_data)

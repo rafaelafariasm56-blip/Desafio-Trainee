@@ -1,7 +1,6 @@
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
 from .models import Pedido, Carrinho
 from .serializers import PedidoSerializer, CarrinhoSerializer, PedidoHistoricoSerializer
 from apps.users.permissions import IsClient
@@ -24,3 +23,4 @@ class PedidoViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return Pedido.objects.filter(user=self.request.user).order_by('-criado_em')
+    

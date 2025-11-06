@@ -51,7 +51,6 @@ class ProdutoAdmin(admin.ModelAdmin):
     list_display = ("nome", "loja", "active", "criada_em")
     list_filter = ("loja", "active")
     search_fields = ("nome", "descricao", "loja__nome", "loja__user__username")
-    prepopulated_fields = {"slug": ("nome",)}
     readonly_fields = ("criada_em",)
     ordering = ("-criada_em",)
     fieldsets = (

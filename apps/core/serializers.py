@@ -1,14 +1,14 @@
 from rest_framework import serializers
 from apps.core.models import LojaPerfil, Produto, Cardapio
-from datetime import datetime
 
 class ProdutoSerializer(serializers.ModelSerializer):
     loja = serializers.StringRelatedField(read_only=True)
+    preco = serializers.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
         model = Produto
-        fields = ['id', 'nome', 'descricao', 'slug', 'active', 'criada_em', 'loja']
-
+        fields = ['id', 'nome', 'descricao', 'preco', 'active', 'criada_em', 'loja']
+        read_only_fields = ['criada_em', 'loja']
 
 class CardapioSerializer(serializers.ModelSerializer):
     produtos = ProdutoSerializer(many=True, read_only=True)
