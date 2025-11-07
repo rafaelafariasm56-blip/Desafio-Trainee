@@ -87,13 +87,16 @@ class UserViewSet(viewsets.ModelViewSet):
             painel = {
                 "meu_cardapio": reverse("cardapio-list", request=request),
                 "meus_produtos": reverse("produtos-list", request=request),
+                "historico_de_pedidos": reverse("historico-loja-list", request=request),
             }
         else:
             painel = {
                 "area_de_vendas": reverse("produtos-list", request=request),
                 "buscar_por_loja": reverse("lojas-list", request=request),
                 "metodo_de_pagamento": reverse("pagamentos-list", request=request),
-                "historico_de_pedidos": reverse("pedidos-list", request=request),
+                "historico_de_pedidos": reverse("historico-pedidos-list", request=request),
+                "carrinho": reverse("carrinho-list", request=request),
+
             }
 
         return Response({

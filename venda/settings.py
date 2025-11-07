@@ -155,3 +155,4 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+CARRINHO_SESSION_ID = 'carrinho'
