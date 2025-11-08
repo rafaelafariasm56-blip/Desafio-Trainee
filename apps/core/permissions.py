@@ -1,12 +1,13 @@
 from rest_framework import permissions
 
-class ELojaOuSomenteLeitura(permissions.BasePermission):
-    def tem_permissao(self, pedido, visualizacao):
-        if pedido.method in permissions.SAFE_METHODS:
-            return True
-        return pedido.user.is_authenticated and pedido.user.loja
 
-    def tem_objeto_permissao(self, pedido, visualizacao, objeto):
-        if pedido.method in permissions.SAFE_METHODS:
+class ELojaOuSomenteLeitura(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
             return True
-        return objeto.loja == pedido.user
+        return bool(request.user.is_authenticated and request.user.loja)
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.loja == request.user

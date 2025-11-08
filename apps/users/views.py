@@ -6,13 +6,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework.reverse import reverse
 from rest_framework.exceptions import PermissionDenied
-from django.shortcuts import redirect
+from rest_framework.views import APIView
 from apps.users.models import User, Pagamento
-from apps.users.serializers import (UserRegisterSerializer,UserSerializer,PagamentoSerializer,LoginSerializer,)
+from apps.users.serializers import UserRegisterSerializer, UserSerializer, PagamentoSerializer, LoginSerializer
 from apps.users.permissions import IsDonoeReadOnly
 from apps.core.models import LojaPerfil, Produto
 from apps.core.serializers import ProdutoSerializer
-from rest_framework.views import APIView
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -29,19 +28,16 @@ class UserViewSet(viewsets.ModelViewSet):
         return [AllowAny()]
 
     def get_serializer_class(self):
-        if self.action == "create":
-            return UserRegisterSerializer
-        elif self.action == "login":
-            return LoginSerializer
-        return UserSerializer
+        match self.action:
+            case "create": return UserRegisterSerializer
+            case "login": return LoginSerializer
+            case _: return UserSerializer
 
     def get_queryset(self):
         user = self.request.user
         if not user.is_authenticated:
             return User.objects.none()
-        if user.loja:
-            return User.objects.filter(loja=False)
-        return User.objects.filter(loja=True)
+        return User.objects.filter(loja=not user.loja)
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def register(self, request):
@@ -53,33 +49,25 @@ class UserViewSet(viewsets.ModelViewSet):
             LojaPerfil.objects.get_or_create(user=user, nome=user.username)
 
         refresh = RefreshToken.for_user(user)
-
         return Response({
             "message": "Usuário registrado com sucesso!",
             "user": UserSerializer(user).data,
-            "tokens": {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            }
+            "tokens": {"refresh": str(refresh), "access": str(refresh.access_token)}
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def login(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         user = authenticate(
             username=serializer.validated_data["username"],
             password=serializer.validated_data["password"]
         )
         if not user:
-            return Response({"detail": "Credenciais inválidas."},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"detail": "Credenciais inválidas."}, status=status.HTTP_401_UNAUTHORIZED)
 
         refresh = RefreshToken.for_user(user)
-
-        if user.loja:
-            LojaPerfil.objects.get_or_create(user=user, nome=user.username)
+        LojaPerfil.objects.get_or_create(user=user, nome=user.username) if user.loja else None
 
         painel = (
             {
@@ -87,9 +75,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 "meus_produtos": reverse("produtos-list", request=request),
                 "historico_de_pedidos": reverse("historico-loja-list", request=request),
                 "meus_pedidos": reverse("meus_pedidos-list", request=request),
-            }
-            if user.loja
-            else {
+            } if user.loja else {
                 "area_de_vendas": reverse("produtos-list", request=request),
                 "buscar_por_loja": reverse("lojas-list", request=request),
                 "metodo_de_pagamento": reverse("pagamentos-list", request=request),
@@ -99,63 +85,14 @@ class UserViewSet(viewsets.ModelViewSet):
         )
 
         painel_url = reverse("painel-loja", request=request) if user.loja else reverse("painel-usuario", request=request)
-
         return Response({
             "message": f"Login realizado com sucesso! Bem-vindo(a), {user.username}",
             "user": UserSerializer(user).data,
-            "tokens": {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-            },
+            "tokens": {"refresh": str(refresh), "access": str(refresh.access_token)},
             "painel": painel,
-            "painel_url": painel_url
-        }, status=status.HTTP_200_OK)
-
-
-class ProdutoViewSet(viewsets.ModelViewSet):
-    queryset = Produto.objects.filter(active=True)
-    serializer_class = ProdutoSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["nome", "descricao", "loja__nome"]
-    ordering_fields = ["criada_em", "nome", "preco"]
-
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [AllowAny()]
-        return [IsAuthenticated()]
-
-    def perform_create(self, serializer):
-        user = self.request.user
-
-        if not user.loja:
-            raise PermissionDenied("Apenas perfis de loja podem adicionar produtos.")
-
-        try:
-            loja = LojaPerfil.objects.get(user=user)
-        except LojaPerfil.DoesNotExist:
-            raise PermissionDenied("Perfil de loja não encontrado. Crie um perfil antes de adicionar produtos.")
-
-        serializer.save(loja=loja)
-
-
-class PagamentoListCreateView(generics.ListCreateAPIView):
-    serializer_class = PagamentoSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Pagamento.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-
-class PagamentoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = PagamentoSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Pagamento.objects.filter(user=self.request.user)
-
+            "painel_url": painel_url,
+        })
+    
 class PainelUsuarioView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -164,8 +101,8 @@ class PainelUsuarioView(APIView):
             "area_de_vendas": reverse("produtos-list", request=request),
             "buscar_por_loja": reverse("lojas-list", request=request),
             "metodo_de_pagamento": reverse("pagamentos-list", request=request),
-            "historico_de_pedidos": reverse("historico-pedidos-list", request=request),
-            "carrinho": reverse("carrinho-list", request=request),
+            "historico_de_pedidos": reverse("pedidos:historico-pedidos-list", request=request),
+            "carrinho": reverse("pedidos:carrinho-list", request=request),
         }
         return Response({"painel_usuario": painel})
 
@@ -177,7 +114,7 @@ class PainelLojaView(APIView):
         painel = {
             "meu_cardapio": reverse("cardapio-list", request=request),
             "meus_produtos": reverse("produtos-list", request=request),
-            "historico_de_pedidos": reverse("historico-loja-list", request=request),
-            "meus_pedidos": reverse("meus_pedidos-list", request=request),
+            "historico_de_pedidos": reverse("pedidos:historico-loja-list", request=request),
+            "meus_pedidos": reverse("pedidos:meus-pedidos-list", request=request),
         }
         return Response({"painel_loja": painel})

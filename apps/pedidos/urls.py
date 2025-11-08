@@ -1,11 +1,15 @@
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PedidoViewSet, HistoricoPedidoViewSet, HistoricoLojaViewSet, CarrinhoViewSet, MeusPedidosViewSet
+from .views import HistoricoPedidoViewSet, HistoricoLojaViewSet, MeusPedidosViewSet, CarrinhoViewSet
+
+app_name = "pedidos"
 
 router = DefaultRouter()
-router.register(r'pedidos', PedidoViewSet, basename='pedidos')
-router.register(r'historico', HistoricoPedidoViewSet, basename='historico-pedidos')
+router.register("historico-pedidos", HistoricoPedidoViewSet, basename="historico-pedidos")
 router.register("historico-loja", HistoricoLojaViewSet, basename="historico-loja")
-router.register(r"carrinho", CarrinhoViewSet, basename="carrinho")
-router.register("meus_pedidos", MeusPedidosViewSet, basename="meus_pedidos")
+router.register("meus-pedidos", MeusPedidosViewSet, basename="meus-pedidos")
+router.register("carrinho", CarrinhoViewSet, basename="carrinho")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("", include(router.urls)),
+]

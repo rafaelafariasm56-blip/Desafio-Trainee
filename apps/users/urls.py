@@ -1,6 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import UserViewSet,PagamentoListCreateView,PagamentoDetailView, ProdutoViewSet,PainelUsuarioView, PainelLojaView
+from .views import UserViewSet
+from apps.core.views import ProdutoViewSet, PagamentoListCreateView, PagamentoDetailView
+from apps.users.views import PainelUsuarioView, PainelLojaView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.reverse import reverse
@@ -32,15 +34,10 @@ urlpatterns = [
 
     path("painel/usuario/", PainelUsuarioView.as_view(), name="painel-usuario"),
     path("painel/loja/", PainelLojaView.as_view(), name="painel-loja"),
-
     path("pagamentos/", PagamentoListCreateView.as_view(), name="pagamentos-list"),
     path("pagamentos/<int:pk>/", PagamentoDetailView.as_view(), name="pagamentos-detail"),
-
     path("users/register/", UserViewSet.as_view({"post": "register"}), name="users-register"),
     path("users/login/", UserViewSet.as_view({"post": "login"}), name="users-login"),
-
     path("", include(router.urls)),
-
     path("api-auth/login/", CustomLoginView.as_view(), name="login"),
-    path("api-auth/", include("rest_framework.urls")),
 ]

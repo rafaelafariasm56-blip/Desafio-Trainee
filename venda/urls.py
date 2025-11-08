@@ -8,13 +8,13 @@ from rest_framework.views import APIView
 from rest_framework.reverse import reverse
 
 schema_view = get_schema_view(
-   openapi.Info(
-      title="API TRAINEE",
-      default_version='v1',
-      description="API de entrega para evitar desperdício de alimentos",
-   ),
-   public=True,
-   permission_classes=(permissions.AllowAny,),
+    openapi.Info(
+        title="API TRAINEE",
+        default_version="v1",
+        description="API de entrega para evitar desperdício de alimentos",
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
 )
 
 class ApiRootView(APIView):
@@ -36,7 +36,7 @@ urlpatterns = [
 
     path("api/users/", include("apps.users.urls")),
     path("api/core/", include("apps.core.urls")),
-    path("api/pedidos/", include("apps.pedidos.urls")),
+    path("api/pedidos/", include(("apps.pedidos.urls", "pedidos"), namespace="pedidos")),
 
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
     path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
