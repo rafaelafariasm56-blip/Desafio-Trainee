@@ -70,3 +70,4 @@ class CardapioViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Perfil de loja não encontrado.")
 
         serializer.save(loja=loja)
+

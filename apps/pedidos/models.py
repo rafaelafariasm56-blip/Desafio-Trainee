@@ -8,11 +8,7 @@ from decimal import Decimal
 import uuid
 
 class Carrinho(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="carrinho"
-    )
+    user = models.OneToOneField(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="carrinho", null=True)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

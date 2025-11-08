@@ -1,17 +1,18 @@
-from rest_framework import viewsets, status, permissions, filters, generics
+from rest_framework import viewsets, status, filters, generics
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from apps.users.models import User, Pagamento
-from apps.users.serializers import UserRegisterSerializer, UserSerializer, PagamentoSerializer, LoginSerializer
 from rest_framework.reverse import reverse
-from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
+from django.shortcuts import redirect
+from apps.users.models import User, Pagamento
+from apps.users.serializers import (UserRegisterSerializer,UserSerializer,PagamentoSerializer,LoginSerializer,)
 from apps.users.permissions import IsDonoeReadOnly
 from apps.core.models import LojaPerfil, Produto
 from apps.core.serializers import ProdutoSerializer
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -22,12 +23,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
-            permission_classes = [IsAuthenticated]
+            return [IsAuthenticated()]
         elif self.action in ["update", "partial_update", "destroy"]:
-            permission_classes = [IsAuthenticated, IsDonoeReadOnly]
-        else:
-            permission_classes = [AllowAny]
-        return [perm() for perm in permission_classes]
+            return [IsAuthenticated(), IsDonoeReadOnly()]
+        return [AllowAny()]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -46,7 +45,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def register(self, request):
-        """Registro de usuário (cliente ou loja) com token automático"""
         serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -83,21 +81,24 @@ class UserViewSet(viewsets.ModelViewSet):
         if user.loja:
             LojaPerfil.objects.get_or_create(user=user, nome=user.username)
 
-        if user.loja:
-            painel = {
+        painel = (
+            {
                 "meu_cardapio": reverse("cardapio-list", request=request),
                 "meus_produtos": reverse("produtos-list", request=request),
                 "historico_de_pedidos": reverse("historico-loja-list", request=request),
+                "meus_pedidos": reverse("meus_pedidos-list", request=request),
             }
-        else:
-            painel = {
+            if user.loja
+            else {
                 "area_de_vendas": reverse("produtos-list", request=request),
                 "buscar_por_loja": reverse("lojas-list", request=request),
                 "metodo_de_pagamento": reverse("pagamentos-list", request=request),
                 "historico_de_pedidos": reverse("historico-pedidos-list", request=request),
                 "carrinho": reverse("carrinho-list", request=request),
-
             }
+        )
+
+        painel_url = reverse("painel-loja", request=request) if user.loja else reverse("painel-usuario", request=request)
 
         return Response({
             "message": f"Login realizado com sucesso! Bem-vindo(a), {user.username}",
@@ -106,18 +107,20 @@ class UserViewSet(viewsets.ModelViewSet):
                 "refresh": str(refresh),
                 "access": str(refresh.access_token),
             },
-            "painel": painel
+            "painel": painel,
+            "painel_url": painel_url
         }, status=status.HTTP_200_OK)
+
 
 class ProdutoViewSet(viewsets.ModelViewSet):
     queryset = Produto.objects.filter(active=True)
     serializer_class = ProdutoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['nome', 'descricao', 'loja__nome']
-    ordering_fields = ['criada_em', 'nome', 'preco']
+    search_fields = ["nome", "descricao", "loja__nome"]
+    ordering_fields = ["criada_em", "nome", "preco"]
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ["list", "retrieve"]:
             return [AllowAny()]
         return [IsAuthenticated()]
 
@@ -133,10 +136,11 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Perfil de loja não encontrado. Crie um perfil antes de adicionar produtos.")
 
         serializer.save(loja=loja)
-    
+
+
 class PagamentoListCreateView(generics.ListCreateAPIView):
     serializer_class = PagamentoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Pagamento.objects.filter(user=self.request.user)
@@ -147,7 +151,33 @@ class PagamentoListCreateView(generics.ListCreateAPIView):
 
 class PagamentoDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PagamentoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Pagamento.objects.filter(user=self.request.user)
+
+class PainelUsuarioView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        painel = {
+            "area_de_vendas": reverse("produtos-list", request=request),
+            "buscar_por_loja": reverse("lojas-list", request=request),
+            "metodo_de_pagamento": reverse("pagamentos-list", request=request),
+            "historico_de_pedidos": reverse("historico-pedidos-list", request=request),
+            "carrinho": reverse("carrinho-list", request=request),
+        }
+        return Response({"painel_usuario": painel})
+
+
+class PainelLojaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        painel = {
+            "meu_cardapio": reverse("cardapio-list", request=request),
+            "meus_produtos": reverse("produtos-list", request=request),
+            "historico_de_pedidos": reverse("historico-loja-list", request=request),
+            "meus_pedidos": reverse("meus_pedidos-list", request=request),
+        }
+        return Response({"painel_loja": painel})

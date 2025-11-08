@@ -17,34 +17,27 @@ schema_view = get_schema_view(
    permission_classes=(permissions.AllowAny,),
 )
 
-
 class ApiRootView(APIView):
-    """
-    API Root — mostra apenas endpoints públicos.
-    (login e register)
-    """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, *args, **kwargs):
         return Response({
             "register": reverse("users-register", request=request),
-            "login": reverse("users-login", request=request),
+            "login": request.build_absolute_uri("/api-auth/login/?next=/api/users/")
         })
 
 
 urlpatterns = [
     path("", ApiRootView.as_view(), name="api-root"),
+
     path("admin/", admin.site.urls),
 
-    # Django REST Framework auth interface (login/logout)
     path("api-auth/", include("rest_framework.urls")),
 
-    # Apps principais
     path("api/users/", include("apps.users.urls")),
     path("api/core/", include("apps.core.urls")),
     path("api/pedidos/", include("apps.pedidos.urls")),
 
-    # Documentação
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
     path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
