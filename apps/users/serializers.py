@@ -19,23 +19,28 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         validate_password(value)
         return value
 
-def create(self, validated_data):
-    endereco_data = validated_data.pop("endereco", None)
+    def create(self, validated_data):  
+        endereco_data = validated_data.pop("endereco", None)
 
-    user = User(
-        username=validated_data['username'],
-        email=validated_data['email'],
-        nome=validated_data['nome'],
-        loja=validated_data.get('loja', False),
-    )
-    user.set_password(validated_data['password'])
-    user.save()
-    if endereco_data:
-        Endereco.objects.create(user=user, **endereco_data)
-    if user.loja:
-        LojaPerfil.objects.get_or_create(user=user, nome=user.username)
+        user = User(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            nome=validated_data['nome'],
+            loja=validated_data.get('loja', False),
+            is_active=True,  
+        )
+        user.set_password(validated_data['password'])  
+        user.save()
 
-    return user
+        if endereco_data:
+            from apps.users.models import Endereco
+            Endereco.objects.create(user=user, **endereco_data)
+
+        if user.loja:
+            from apps.core.models import LojaPerfil
+            LojaPerfil.objects.get_or_create(user=user, nome=user.username)
+
+        return user
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
