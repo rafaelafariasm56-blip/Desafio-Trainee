@@ -1,7 +1,12 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from apps.users.models import User, Pagamento
+from .models import User, Pagamento, Endereco
+from apps.core.models import LojaPerfil
 
+class EnderecoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Endereco
+        fields = ["cep", "rua", "numero", "bairro", "cidade", "estado"]
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, style={'input_type': 'password'}, required=True)
@@ -14,17 +19,23 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         validate_password(value)
         return value
 
-    def create(self, validated_data):
-        user = User(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            nome=validated_data['nome'],
-            loja=validated_data.get('loja', False),
-        )
-        user.set_password(validated_data['password'])
-        user.save()
-        return user
+def create(self, validated_data):
+    endereco_data = validated_data.pop("endereco", None)
 
+    user = User(
+        username=validated_data['username'],
+        email=validated_data['email'],
+        nome=validated_data['nome'],
+        loja=validated_data.get('loja', False),
+    )
+    user.set_password(validated_data['password'])
+    user.save()
+    if endereco_data:
+        Endereco.objects.create(user=user, **endereco_data)
+    if user.loja:
+        LojaPerfil.objects.get_or_create(user=user, nome=user.username)
+
+    return user
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()

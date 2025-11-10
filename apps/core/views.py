@@ -8,27 +8,65 @@ from rest_framework.reverse import reverse
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from .permissions import ELojaOuSomenteLeitura
+
+from rest_framework import viewsets, permissions, filters, serializers
+from rest_framework.exceptions import PermissionDenied
+from .models import Produto, LojaPerfil
+from .serializers import ProdutoSerializer
 
 
 class ProdutoViewSet(viewsets.ModelViewSet):
-    #Listagem e criação de produtos de loja.
-    queryset = Produto.objects.filter(active=True)
+    queryset = Produto.objects.filter(disponivel=True, active=True)
     serializer_class = ProdutoSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nome", "descricao", "loja__nome"]
     ordering_fields = ["criada_em", "nome", "preco"]
 
+    def get_queryset(self):
+        user = self.request.user
+        qs = Produto.objects.filter(active=True, disponivel=True)
+
+        if not user.is_authenticated:
+            return qs  
+
+        if hasattr(user, "lojaperfil"):
+            return Produto.objects.filter(loja=user.lojaperfil)
+        return qs
+
     def get_permissions(self):
-        return [permissions.AllowAny()] if self.action in ["list", "retrieve"] else [permissions.IsAuthenticated()]
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if not user.is_authenticated or not user.loja:
+            # Serializer somente leitura
+            class ProdutoLeituraSerializer(serializers.ModelSerializer):
+                loja = serializers.StringRelatedField()
+
+                class Meta:
+                    model = Produto
+                    fields = ["id", "nome", "descricao", "preco", "disponivel", "loja"]
+                    read_only_fields = fields
+
+            return ProdutoLeituraSerializer
+
+        return self.serializer_class
 
     def perform_create(self, serializer):
         user = self.request.user
-        if not user.loja:
+        if not hasattr(user, "lojaperfil"):
             raise PermissionDenied("Apenas perfis de loja podem adicionar produtos.")
-        loja = getattr(user, "lojaperfil", None)
-        if not loja:
-            raise PermissionDenied("Perfil de loja não encontrado. Crie um perfil antes de adicionar produtos.")
-        serializer.save(loja=loja)
+        serializer.save(loja=user.lojaperfil)
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not hasattr(user, "lojaperfil") or instance.loja != user.lojaperfil:
+            raise PermissionDenied("Você não tem permissão para excluir este produto.")
+        instance.delete()
+
 
 class PagamentoListCreateView(generics.ListCreateAPIView):
     serializer_class = PagamentoSerializer
