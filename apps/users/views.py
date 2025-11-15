@@ -93,7 +93,7 @@ class UserViewSet(viewsets.ModelViewSet):
             "meu_cardapio": reverse("cardapio-list", request=request),
             "meus_produtos": reverse("produtos-list", request=request),
             "historico_de_pedidos": reverse("pedidos:historico-loja-list", request=request),
-            "meus_pedidos": reverse("pedidos:meus-pedidos-list", request=request),
+            "faturamento": reverse("pedidos:faturamento-periodo", request=request),
         }
 
         return Response({
@@ -134,6 +134,7 @@ class PainelLojaView(APIView):
             "meu_cardapio": reverse("cardapio-list", request=request),
             "meus_produtos": reverse("produtos-list", request=request),
             "historico_de_pedidos": reverse("pedidos:historico-loja-list", request=request),
+            "faturamento": reverse("pedidos:faturamento-periodo", request=request),
         }
         return Response({"painel_loja": painel})
 

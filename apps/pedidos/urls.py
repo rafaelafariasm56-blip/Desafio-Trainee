@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import HistoricoPedidoViewSet, HistoricoLojaViewSet, MeusPedidosViewSet, CarrinhoViewSet, PagamentoViewSet
+from .views import HistoricoPedidoViewSet, HistoricoLojaViewSet, MeusPedidosViewSet, CarrinhoViewSet, PagamentoViewSet, FaturamentoViewSet
 
 app_name = "pedidos"
 
@@ -10,6 +10,7 @@ router.register("historico-pedidos", HistoricoPedidoViewSet, basename="historico
 router.register("historico-loja", HistoricoLojaViewSet, basename="historico-loja")
 router.register("meus-pedidos", MeusPedidosViewSet, basename="meus-pedidos")
 router.register("pagamento", PagamentoViewSet, basename="pagamento")  
+router.register("faturamento", FaturamentoViewSet, basename="faturamento")
 
 urlpatterns = [
     path("", include(router.urls)),  

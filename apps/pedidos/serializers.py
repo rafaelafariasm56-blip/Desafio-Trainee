@@ -215,3 +215,7 @@ class PagamentoSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+class FaturamentoFiltroSerializer(serializers.Serializer):
+    data_inicial = serializers.DateField(required=True)
+    data_final = serializers.DateField(required=True)

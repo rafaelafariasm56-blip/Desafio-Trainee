@@ -2,13 +2,12 @@ from rest_framework import viewsets, permissions, status, mixins
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Pedido, Carrinho, CarrinhoItem, PedidoItem
-from apps.core.models import Produto
 from apps.users.models import Pagamento
-from .serializers import PedidoSerializer, CarrinhoSerializer, CarrinhoItemSerializer, MetodoPagamentoSerializer, PagamentoSerializer, AtualizarStatusPedidoSerializer, PedidoLojaSerializer, PagamentoSerializer, FinalizarPagamentoSerializer
+from .serializers import PedidoSerializer, CarrinhoSerializer, CarrinhoItemSerializer, MetodoPagamentoSerializer, PagamentoSerializer, AtualizarStatusPedidoSerializer, PedidoLojaSerializer, PagamentoSerializer, FinalizarPagamentoSerializer, FaturamentoFiltroSerializer
 from django.db import transaction
-from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.decorators import action
-from rest_framework.views import APIView
+from django.db.models import Sum, Count, Avg
+from django.utils.dateparse import parse_datetime
 
 class CarrinhoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -38,12 +37,6 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         produto = serializer.validated_data["produto"]
         quantidade = serializer.validated_data["quantidade"]
 
-        if quantidade > produto.quantidade:
-            return Response(
-                {"detail": f"Estoque insuficiente. Apenas {produto.quantidade} unidade(s) disponível(is)."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         item, criado = CarrinhoItem.objects.get_or_create(
             carrinho=carrinho,
             produto=produto,
@@ -51,15 +44,7 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         )
 
         if not criado:
-            nova_quantidade = item.quantidade + quantidade
-
-            if nova_quantidade > produto.quantidade:
-                return Response(
-                    {"detail": f"Estoque insuficiente. Apenas {produto.quantidade} unidade(s) disponível(is)."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            item.quantidade = nova_quantidade
+            item.quantidade += quantidade
             item.save()
 
         return Response(CarrinhoItemSerializer(item).data, status=status.HTTP_201_CREATED)
@@ -77,16 +62,6 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except CarrinhoItem.DoesNotExist:
             return Response({"detail": "Produto não encontrado no carrinho."}, status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=False, methods=["delete"], url_path="limpar")
-    def limpar_carrinho(self, request):
-        carrinho = self.get_object()
-
-        if not carrinho.items.exists():
-            return Response({"detail": "Carrinho já está vazio."}, status=status.HTTP_200_OK)
-
-        carrinho.items.all().delete()
-        return Response({"detail": "Carrinho esvaziado com sucesso."}, status=status.HTTP_204_NO_CONTENT)
         
 
 class PedidoViewSet(viewsets.ModelViewSet):
@@ -274,3 +249,53 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             status=201
         )
 
+class FaturamentoViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == "periodo":
+            return FaturamentoFiltroSerializer
+        return None
+
+    def get_serializer(self, *args, **kwargs):
+        serializer_class = self.get_serializer_class()
+        if serializer_class is None:
+            raise AttributeError("Defina get_serializer_class para esta action.")
+        return serializer_class(*args, **kwargs)
+
+    @action(detail=False, methods=["get", "post"])
+    def periodo(self, request):
+
+        dados = request.query_params if request.method == "GET" else request.data
+
+        serializer = self.get_serializer(data=dados)
+        serializer.is_valid(raise_exception=True)
+
+        data_inicial = serializer.validated_data["data_inicial"]
+        data_final = serializer.validated_data["data_final"]
+
+        user = request.user
+
+        pedidos = Pedido.objects.filter(
+            loja=user.loja,
+            status="entregue",             
+            criado_em__date__range=[data_inicial, data_final]
+        )
+
+        resumo = pedidos.aggregate(
+            total_faturado=Sum("total"),
+            total_pedidos=Count("id"),
+            ticket_medio=Avg("total")
+        )
+
+        return Response({
+            "periodo": {
+                "data_inicial": data_inicial,
+                "data_final": data_final
+            },
+            "resumo": {
+                "total_faturado": resumo["total_faturado"] or 0,
+                "total_pedidos": resumo["total_pedidos"],
+                "ticket_medio": resumo["ticket_medio"] or 0
+            }
+        })
