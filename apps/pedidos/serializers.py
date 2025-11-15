@@ -29,6 +29,8 @@ class CarrinhoSerializer(serializers.ModelSerializer):
         model = Carrinho
         fields = ["id", "items", "total"]
 
+
+
 class MetodoPagamentoSerializer(serializers.ModelSerializer):
     descricao = serializers.SerializerMethodField()
 
@@ -37,7 +39,7 @@ class MetodoPagamentoSerializer(serializers.ModelSerializer):
         fields = ["id", "metodo", "descricao"]
 
     def get_descricao(self, obj):
-        return str(obj)   
+        return str(obj)
 
 
 class MetodoPagamentoListaSerializer(serializers.ModelSerializer):
@@ -48,10 +50,9 @@ class MetodoPagamentoListaSerializer(serializers.ModelSerializer):
         fields = ["nome_exibicao"]
 
     def get_nome_exibicao(self, obj):
-        if obj.tipo == "cartao":
-            return f"{obj.bandeira} ****{obj.numero[-4:]}"
-        return obj.apelido or "Método de Pagamento"
-
+        if obj.metodo == "cartao":
+            return f"Cartão ****{obj.numero_cartao[-4:]}"
+        return obj.observacao or "Método de pagamento"
 
 
 class PedidoSerializer(serializers.ModelSerializer):
@@ -65,6 +66,8 @@ class PedidoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Método de pagamento inválido.")
         return value
 
+
+
 class FinalizarPagamentoSerializer(serializers.Serializer):
     metodo_pagamento_id = serializers.IntegerField()
 
@@ -72,7 +75,10 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
         user = self.context["request"].user
 
         try:
-            metodo_pagamento = Pagamento.objects.get(id=validated_data["metodo_pagamento_id"], user=user)
+            metodo_pagamento = Pagamento.objects.get(
+                id=validated_data["metodo_pagamento_id"],
+                user=user
+            )
         except Pagamento.DoesNotExist:
             raise serializers.ValidationError("Método de pagamento inválido.")
 
@@ -89,9 +95,19 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
         lojas = {}
         for item in carrinho.items.all():
             loja = item.produto.loja
+
             if loja.id not in lojas:
                 lojas[loja.id] = []
+
             lojas[loja.id].append(item)
+
+        for loja_id, itens in lojas.items():
+            for item in itens:
+                produto = item.produto
+                if item.quantidade > produto.quantidade:
+                    raise serializers.ValidationError(
+                        f"Estoque insuficiente para '{produto.nome}'. Disponível: {produto.quantidade}."
+                    )
 
         for loja_id, itens in lojas.items():
             loja = itens[0].produto.loja
@@ -104,8 +120,25 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
                 metodo_pagamento=metodo_pagamento
             )
 
+            for item in itens:
+                produto = item.produto
+
+                PedidoItem.objects.create(
+                    pedido=pedido,
+                    produto=produto,
+                    quantidade=item.quantidade,
+                    preco=produto.preco  
+                )
+
+                produto.quantidade -= item.quantidade
+                if produto.quantidade <= 0:
+                    produto.quantidade = 0
+                    produto.disponivel = False
+                produto.save()
+
             pedidos_criados.append(pedido)
 
+        # Limpar carrinho
         carrinho.items.all().delete()
 
         return pedidos_criados
@@ -116,13 +149,13 @@ class AtualizarStatusPedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
         fields = ['status']
-        read_only_fields = []
 
     def validate_status(self, value):
         if value not in dict(Pedido.STATUS_CHOICES):
             raise serializers.ValidationError("Status inválido.")
         return value
-    
+
+
 class PedidoLojaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
@@ -143,35 +176,42 @@ class PedidoLojaSerializer(serializers.ModelSerializer):
             "code",
             "user",
             "loja",
-            "metodo_pagamento"]  
+            "metodo_pagamento"
+        ]
 
-    def validate_status(self, value):
-        if value not in dict(Pedido.STATUS_CHOICES):
-            raise serializers.ValidationError("Status inválido.")
-        return value
-    
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
-        fields = ["id","metodo","nome_no_cartao","numero_cartao", "validade","cvv","chave_pix","observacao","ativo",]
+        fields = [
+            "id",
+            "metodo",
+            "nome_no_cartao",
+            "numero_cartao",
+            "validade",
+            "cvv",
+            "chave_pix",
+            "observacao",
+            "ativo",
+        ]
 
     def validate(self, attrs):
         metodo = attrs.get("metodo")
 
         if metodo == "cartao":
-            required_fields = ["nome_no_cartao", "numero_cartao", "validade", "cvv"]
-
-            for field in required_fields:
-                value = attrs.get(field)
-                if not value:
+            for campo in ["nome_no_cartao", "numero_cartao", "validade", "cvv"]:
+                if not attrs.get(campo):
                     raise serializers.ValidationError(
-                        {field: f"O campo '{field}' é obrigatório para pagamento com cartão."}
+                        {campo: f"O campo '{campo}' é obrigatório para cartão."}
                     )
 
-        if metodo == "outro":
-            if not attrs.get("observacao"):
-                raise serializers.ValidationError(
-                    {"observacao": "A observação é obrigatória quando o método é 'outro'."}
-                )
+        if metodo == "pix" and not attrs.get("chave_pix"):
+            raise serializers.ValidationError(
+                {"chave_pix": "A chave PIX é obrigatória para pagamento via PIX."}
+            )
 
-        return attrs    
+        if metodo == "outro" and not attrs.get("observacao"):
+            raise serializers.ValidationError(
+                {"observacao": "A observação é obrigatória quando o método é 'outro'."}
+            )
+
+        return attrs

@@ -38,6 +38,12 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         produto = serializer.validated_data["produto"]
         quantidade = serializer.validated_data["quantidade"]
 
+        if quantidade > produto.quantidade:
+            return Response(
+                {"detail": f"Estoque insuficiente. Apenas {produto.quantidade} unidade(s) disponível(is)."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         item, criado = CarrinhoItem.objects.get_or_create(
             carrinho=carrinho,
             produto=produto,
@@ -45,7 +51,15 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         )
 
         if not criado:
-            item.quantidade += quantidade
+            nova_quantidade = item.quantidade + quantidade
+
+            if nova_quantidade > produto.quantidade:
+                return Response(
+                    {"detail": f"Estoque insuficiente. Apenas {produto.quantidade} unidade(s) disponível(is)."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            item.quantidade = nova_quantidade
             item.save()
 
         return Response(CarrinhoItemSerializer(item).data, status=status.HTTP_201_CREATED)
@@ -63,6 +77,16 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except CarrinhoItem.DoesNotExist:
             return Response({"detail": "Produto não encontrado no carrinho."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=["delete"], url_path="limpar")
+    def limpar_carrinho(self, request):
+        carrinho = self.get_object()
+
+        if not carrinho.items.exists():
+            return Response({"detail": "Carrinho já está vazio."}, status=status.HTTP_200_OK)
+
+        carrinho.items.all().delete()
+        return Response({"detail": "Carrinho esvaziado com sucesso."}, status=status.HTTP_204_NO_CONTENT)
         
 
 class PedidoViewSet(viewsets.ModelViewSet):
@@ -156,7 +180,7 @@ class HistoricoPedidoViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return Pedido.objects.filter(
             user=self.request.user,
-            status__in=["entregue", "cancelado"]
+            status__in=["entregue", "cancelado", "pendente", "a caminho", "preparando"]
         ).order_by("-criado_em")
 
 
