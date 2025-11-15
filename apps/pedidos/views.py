@@ -10,14 +10,7 @@ from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.decorators import action
 from rest_framework.views import APIView
 
-
-def get_carrinho(usuario):
-    carrinho, _ = Carrinho.objects.get_or_create(usuario=usuario)
-    return carrinho
-
-
 class CarrinhoViewSet(viewsets.ModelViewSet):
-    serializer_class = CarrinhoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -26,6 +19,11 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
     def get_object(self):
         carrinho, _ = Carrinho.objects.get_or_create(user=self.request.user)
         return carrinho
+
+    def get_serializer_class(self):
+        if self.action in ["create"]:
+            return CarrinhoItemSerializer
+        return CarrinhoSerializer
 
     def list(self, request, *args, **kwargs):
         carrinho = self.get_object()
