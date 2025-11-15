@@ -73,20 +73,3 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
-class PagamentoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Pagamento
-        fields = [
-            'id',
-            'metodo',
-            'nome_no_cartao',
-            'numero_cartao',
-            'validade',
-            'cvv',
-            'chave_pix',
-            'observacao',
-            'ativo',
-        ]
-
-    def create(self, validated_data):
-        return Pagamento.objects.create(**validated_data)

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, filters, generics
 from rest_framework.exceptions import PermissionDenied
 from apps.users.models import Pagamento
-from apps.users.serializers import PagamentoSerializer
+from apps.pedidos.serializers import PagamentoSerializer
 from apps.core.models import LojaPerfil, Produto, Cardapio
 from apps.core.serializers import LojaSerializer, ProdutoSerializer, CardapioSerializer
 from rest_framework.reverse import reverse
@@ -85,6 +85,7 @@ class PagamentoDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Pagamento.objects.filter(user=self.request.user)
+
 
 
 class LojaViewSet(viewsets.ReadOnlyModelViewSet):
