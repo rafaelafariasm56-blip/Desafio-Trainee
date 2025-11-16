@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User, Pagamento, Endereco
-from apps.core.models import LojaPerfil
+from .models import User, Endereco
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class EnderecoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -72,4 +72,18 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        token["is_loja"] = user.loja  
+
+        token["loja_id"] = (
+            user.lojaperfil.id if user.loja and hasattr(user, "lojaperfil") else None
+        )
+
+        return token
+
     

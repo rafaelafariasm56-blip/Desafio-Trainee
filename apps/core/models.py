@@ -11,7 +11,6 @@ class LojaPerfil(models.Model):
         return self.nome
 
 
-
 class Produto(models.Model):
     loja = models.ForeignKey("core.LojaPerfil", on_delete=models.CASCADE, related_name="produtos")
     nome = models.CharField(max_length=255)

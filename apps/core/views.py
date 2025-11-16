@@ -1,16 +1,10 @@
-from rest_framework import viewsets, permissions, filters, generics
+from rest_framework import viewsets, permissions, filters, serializers, generics
 from rest_framework.exceptions import PermissionDenied
 from apps.users.models import Pagamento
 from apps.pedidos.serializers import PagamentoSerializer
-from apps.core.models import LojaPerfil, Produto, Cardapio
-from apps.core.serializers import LojaSerializer, ProdutoSerializer, CardapioSerializer
-from rest_framework.reverse import reverse
+from apps.core.models import LojaPerfil, Produto
+from apps.core.serializers import LojaSerializer, ProdutoSerializer
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import ELojaOuSomenteLeitura
-
-from rest_framework import viewsets, permissions, filters, serializers
 from rest_framework.exceptions import PermissionDenied
 from .models import Produto, LojaPerfil
 from .serializers import ProdutoSerializer

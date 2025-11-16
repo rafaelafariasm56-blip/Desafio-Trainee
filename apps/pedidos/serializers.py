@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from .models import Carrinho, Pedido, PedidoItem, Produto
+from .models import Carrinho, Pedido, PedidoItem
 from apps.users.models import Pagamento
 from apps.pedidos.models import CarrinhoItem
-from apps.core.serializers import ProdutoSerializer
 
 
 class CarrinhoAdicionarItemSerializer(serializers.Serializer):

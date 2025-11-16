@@ -2,9 +2,6 @@ from django.conf import settings
 from django.db import models
 from apps.users.models import User
 from apps.core.models import Produto
-from apps.core.serializers import ProdutoSerializer
-from decimal import Decimal
-
 import uuid
 
 class Carrinho(models.Model):
