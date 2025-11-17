@@ -1,23 +1,37 @@
 from rest_framework import serializers
-from .models import Carrinho, Pedido, PedidoItem
-from apps.users.models import Pagamento
+from .models import Carrinho, Pedido, PedidoItem, Produto
+from apps.users.models import Pagamento, Endereco
 from apps.pedidos.models import CarrinhoItem
 
 
 class CarrinhoAdicionarItemSerializer(serializers.Serializer):
-    produto_id = serializers.IntegerField()
+    produto = serializers.PrimaryKeyRelatedField(
+        queryset=Produto.objects.all()
+    )
     quantidade = serializers.IntegerField(min_value=1, default=1)
 
 
 class CarrinhoItemSerializer(serializers.ModelSerializer):
+    produto_id = serializers.IntegerField(source="produto.id", read_only=True)
+    produto_nome = serializers.CharField(source="produto.nome", read_only=True)
+    produto_preco = serializers.DecimalField(
+        source="produto.preco",
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = CarrinhoItem
-        fields = ["id", "produto", "quantidade", "subtotal"]
-        extra_kwargs = {
-            "produto": {"write_only": True},
-        }
+        fields = [
+            "id",
+            "produto_id",
+            "produto_nome",
+            "produto_preco",
+            "quantidade",
+            "subtotal"
+        ]
 
 
 class CarrinhoSerializer(serializers.ModelSerializer):
@@ -89,9 +103,13 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
         if not carrinho.items.exists():
             raise serializers.ValidationError("Seu carrinho está vazio.")
 
-        pedidos_criados = []
+        endereco = user.enderecos.first()
+        if not endereco:
+            raise serializers.ValidationError("Adicione um endereço antes de finalizar o pedido.")
 
+        pedidos_criados = []
         lojas = {}
+
         for item in carrinho.items.all():
             loja = item.produto.loja
 
@@ -101,14 +119,6 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
             lojas[loja.id].append(item)
 
         for loja_id, itens in lojas.items():
-            for item in itens:
-                produto = item.produto
-                if item.quantidade > produto.quantidade:
-                    raise serializers.ValidationError(
-                        f"Estoque insuficiente para '{produto.nome}'. Disponível: {produto.quantidade}."
-                    )
-
-        for loja_id, itens in lojas.items():
             loja = itens[0].produto.loja
             total = sum(item.produto.preco * item.quantidade for item in itens)
 
@@ -116,7 +126,8 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
                 user=user,
                 loja=loja,
                 total=total,
-                metodo_pagamento=metodo_pagamento
+                metodo_pagamento=metodo_pagamento,
+                endereco=endereco  
             )
 
             for item in itens:
@@ -126,18 +137,19 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
                     pedido=pedido,
                     produto=produto,
                     quantidade=item.quantidade,
-                    preco=produto.preco  
+                    preco=produto.preco
                 )
 
                 produto.quantidade -= item.quantidade
+
                 if produto.quantidade <= 0:
                     produto.quantidade = 0
                     produto.disponivel = False
+
                 produto.save()
 
             pedidos_criados.append(pedido)
 
-        # Limpar carrinho
         carrinho.items.all().delete()
 
         return pedidos_criados
@@ -155,7 +167,21 @@ class AtualizarStatusPedidoSerializer(serializers.ModelSerializer):
         return value
 
 
+class EnderecoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Endereco
+        fields = "__all__"
+        read_only_fields = ["user"]
+
+class EnderecoCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Endereco
+        fields = ["rua", "numero", "bairro", "cidade", "estado", "cep", "complemento"]
+
+
 class PedidoLojaSerializer(serializers.ModelSerializer):
+    endereco = EnderecoSerializer(read_only=True)
+
     class Meta:
         model = Pedido
         fields = [
@@ -163,20 +189,12 @@ class PedidoLojaSerializer(serializers.ModelSerializer):
             "criado_em",
             "status",
             "total",
-            "code",
             "user",
             "loja",
-            "metodo_pagamento"
+            "metodo_pagamento",
+            "endereco"
         ]
-        read_only_fields = [
-            "id",
-            "criado_em",
-            "total",
-            "code",
-            "user",
-            "loja",
-            "metodo_pagamento"
-        ]
+        read_only_fields = fields
 
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:

@@ -2,14 +2,20 @@ from rest_framework import viewsets, permissions, status, mixins
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Pedido, Carrinho, CarrinhoItem, PedidoItem
-from apps.users.models import Pagamento
-from .serializers import PedidoSerializer, CarrinhoSerializer, CarrinhoItemSerializer, MetodoPagamentoSerializer, PagamentoSerializer, AtualizarStatusPedidoSerializer, PedidoLojaSerializer, PagamentoSerializer, FinalizarPagamentoSerializer, FaturamentoFiltroSerializer
+from apps.users.permissions import IsDonoeReadOnly
+from apps.users.models import Pagamento, Endereco
+from apps.core.models import Produto
+from .serializers import PedidoSerializer, CarrinhoSerializer, CarrinhoItemSerializer, CarrinhoAdicionarItemSerializer, MetodoPagamentoSerializer, PagamentoSerializer, AtualizarStatusPedidoSerializer, PedidoLojaSerializer, PagamentoSerializer, FinalizarPagamentoSerializer, FaturamentoFiltroSerializer, EnderecoSerializer, EnderecoCreateSerializer
 from django.db import transaction
 from rest_framework.decorators import action
 from django.db.models import Sum, Count, Avg
-from django.utils.dateparse import parse_datetime
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 class CarrinhoViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de carrinho.
+    """
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -20,22 +26,46 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         return carrinho
 
     def get_serializer_class(self):
-        if self.action in ["create"]:
-            return CarrinhoItemSerializer
+        if self.action == "create":
+            return CarrinhoAdicionarItemSerializer
         return CarrinhoSerializer
 
+    @swagger_auto_schema(
+        operation_summary="Listar carrinho do usuário",
+        operation_description="Retorna o carrinho atual do usuário autenticado com todos os itens.",
+        responses={200: CarrinhoSerializer()}
+    )
     def list(self, request, *args, **kwargs):
         carrinho = self.get_object()
         serializer = self.get_serializer(carrinho)
         return Response(serializer.data)
 
+    @swagger_auto_schema(
+        operation_summary="Adicionar item ao carrinho",
+        operation_description=(
+            "Adiciona um novo item ao carrinho. Caso o produto já exista no "
+            "carrinho, a quantidade é somada."
+        ),
+    )
     def create(self, request, *args, **kwargs):
         carrinho = self.get_object()
-        serializer = CarrinhoItemSerializer(data=request.data)
+
+        serializer = CarrinhoAdicionarItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        produto = serializer.validated_data["produto"]
+        produto_id = serializer.validated_data["produto_id"]
         quantidade = serializer.validated_data["quantidade"]
+
+        try:
+            produto = Produto.objects.get(id=produto_id)
+        except Produto.DoesNotExist:
+            return Response({"detail": "Produto não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        if quantidade > produto.quantidade:
+            return Response(
+                {"detail": f"Estoque insuficiente. Disponível: {produto.quantidade}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         item, criado = CarrinhoItem.objects.get_or_create(
             carrinho=carrinho,
@@ -44,11 +74,29 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         )
 
         if not criado:
+            if item.quantidade + quantidade > produto.quantidade:
+                return Response(
+                    {"detail": f"Quantidade total excede o estoque. Disponível: {produto.quantidade}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             item.quantidade += quantidade
             item.save()
 
         return Response(CarrinhoItemSerializer(item).data, status=status.HTTP_201_CREATED)
 
+
+    @swagger_auto_schema(
+        operation_summary="Remover item do carrinho",
+        operation_description="Remove um item do carrinho pelo produto_id.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "produto_id": openapi.Schema(type=openapi.TYPE_INTEGER)
+            },
+            required=["produto_id"]
+        ),
+    )
     def destroy(self, request, *args, **kwargs):
         carrinho = self.get_object()
         produto_id = request.data.get("produto_id")
@@ -57,20 +105,40 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
             return Response({"detail": "produto_id é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            item = carrinho.items.get(produto_id=produto_id)
+            item = carrinho.items.get(produto__id=produto_id)
             item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
+
         except CarrinhoItem.DoesNotExist:
             return Response({"detail": "Produto não encontrado no carrinho."}, status=status.HTTP_404_NOT_FOUND)
+
+
         
 
 class PedidoViewSet(viewsets.ModelViewSet):
     serializer_class = PedidoSerializer
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Listar pedidos do usuário",
+        responses={200: PedidoSerializer(many=True)}
+    )
     def get_queryset(self):
         return Pedido.objects.filter(user=self.request.user).order_by("-criado_em")
 
+
+    @swagger_auto_schema(
+        operation_summary="Criar pedido a partir do carrinho",
+        operation_description="Gera um pedido com base nos itens do carrinho do usuário.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "metodo_pagamento": openapi.Schema(type=openapi.TYPE_INTEGER)
+            },
+            required=["metodo_pagamento"]
+        ),
+        responses={201: PedidoSerializer(), 400: "Carrinho vazio"}
+    )
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         user = request.user
@@ -101,9 +169,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
         return Response(PedidoSerializer(pedido).data, status=status.HTTP_201_CREATED)
 
 
+
 class MetodoPagamentoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Pagamento.objects.all()
-    serializer_class = MetodoPagamentoSerializer
+    serializer_class = PagamentoSerializer
     permission_classes = [permissions.AllowAny]
         
 
@@ -130,6 +199,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
             user=user,
             loja=loja,
             metodo_pagamento_id=metodo_pagamento_id,
+            endereco=user.endereco,
             total=total,
         )
 
@@ -159,7 +229,6 @@ class HistoricoPedidoViewSet(viewsets.ReadOnlyModelViewSet):
         ).order_by("-criado_em")
 
 
-
 class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixins.UpdateModelMixin,viewsets.GenericViewSet):
     serializer_class = PedidoLojaSerializer
     permission_classes = [IsAuthenticated]
@@ -171,21 +240,36 @@ class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixin
         return Pedido.objects.filter(loja=loja).order_by("-criado_em")
     
 
-class PedidoLojaViewSet(viewsets.ModelViewSet):
-    queryset = Pedido.objects.all()
-    serializer_class = AtualizarStatusPedidoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class PedidoLojaViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = PedidoLojaSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Pedido.objects.filter(loja__user=self.request.user)
+        payload = self.request.auth or {}
+        loja_id = payload.get("loja_id")
 
-    @action(detail=True, methods=['patch'])
+        if not loja_id:
+            return Pedido.objects.none()  
+        return Pedido.objects.filter(loja_id=loja_id).order_by("-criado_em")
+
+    @action(detail=True, methods=["PATCH"], url_path="status")
     def atualizar_status(self, request, pk=None):
-        pedido = self.get_object()
-        serializer = self.get_serializer(pedido, data=request.data, partial=True)
+        payload = request.auth or {}
+        loja_id = payload.get("loja_id")
+
+        if not loja_id:
+            return Response({"erro": "Acesso negado."}, status=403)
+
+        try:
+            pedido = Pedido.objects.get(pk=pk, loja_id=loja_id)
+        except Pedido.DoesNotExist:
+            return Response({"erro": "Pedido não encontrado."}, status=404)
+
+        serializer = AtualizarStatusPedidoSerializer(pedido, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data)
+
+        return Response({"mensagem": "Status atualizado com sucesso."})
     
 
 class MeusPedidosViewSet(viewsets.ReadOnlyModelViewSet):
@@ -206,8 +290,23 @@ class MeusPedidosViewSet(viewsets.ReadOnlyModelViewSet):
         pedido.save()
         return Response(PedidoSerializer(pedido).data)
 
+
+class EnderecoViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, IsDonoeReadOnly]
+
+    def get_queryset(self):
+        return Endereco.objects.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return EnderecoCreateSerializer
+        return EnderecoSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
 class PagamentoViewSet(viewsets.ModelViewSet):
-    queryset = Pagamento.objects.all()
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
 
@@ -217,23 +316,33 @@ class PagamentoViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-    def get_serializer_class(self):
-        if self.action == "pagar":
-            if self.request.method == "POST":
-                return FinalizarPagamentoSerializer
-            else:
-                return MetodoPagamentoSerializer  
-        return PagamentoSerializer
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user)
 
-    @action(detail=False, methods=["get", "post"], url_path="pagar")
+    def destroy(self, request, *args, **kwargs):
+        pagamento = self.get_object()
+        pagamento.ativo = False
+        pagamento.save()
+        return Response({"mensagem": "Método de pagamento removido."})
+
+    @action(
+        detail=False,
+        methods=["GET"],
+        url_path="listar",
+        serializer_class=MetodoPagamentoSerializer
+    )
+    def listar_metodos(self, request):
+        metodos = Pagamento.objects.filter(user=request.user, ativo=True)
+        serializer = MetodoPagamentoSerializer(metodos, many=True)
+        return Response(serializer.data)
+
+    @action(
+        detail=False,
+        methods=["POST"],
+        url_path="pagar",
+        serializer_class=FinalizarPagamentoSerializer)
+    
     def pagar(self, request):
-        user = request.user
-
-        if request.method == "GET":
-            metodos = Pagamento.objects.filter(user=user, ativo=True)
-            serializer = MetodoPagamentoSerializer(metodos, many=True)
-            return Response(serializer.data)
-
         serializer = FinalizarPagamentoSerializer(
             data=request.data,
             context={"request": request}
@@ -243,11 +352,14 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
         return Response(
             {
-                "sucesso": "Pagamento realizado!",
+                "sucesso": True,
+                "mensagem": "Pagamento concluído com sucesso.",
                 "pedidos": [p.id for p in pedidos],
             },
-            status=201
+            status=201,
         )
+
+
 
 class FaturamentoViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]

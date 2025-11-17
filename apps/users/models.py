@@ -33,6 +33,7 @@ class Pagamento(models.Model):
         return f"{self.get_metodo_display()} - {self.user.username}"
 
 class Endereco(models.Model):
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="enderecos")
     rua = models.CharField(max_length=255)
     numero = models.CharField(max_length=10, blank=True)
     bairro = models.CharField(max_length=100, blank=True)

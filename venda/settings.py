@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.pedidos',
     'apps.core',
+    'drf_yasg',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -90,6 +91,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -98,7 +100,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.users.authentication.CookieJWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
+        #"rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",

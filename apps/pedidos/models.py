@@ -24,9 +24,6 @@ class CarrinhoItem(models.Model):
         return self.produto.preco * self.quantidade
 
 
-    
-def gerar_code():
-    return uuid.uuid4().hex[:12].upper()
 
 class Pedido(models.Model):
     STATUS_CHOICES = [
@@ -43,7 +40,7 @@ class Pedido(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pendente")
     total = models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pagamento = models.ForeignKey("users.Pagamento", on_delete=models.SET_NULL, null=True, blank=True)
-    code = models.CharField(max_length=12, unique=True, default=gerar_code)
+    endereco = models.ForeignKey("users.Endereco", on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"Pedido #{self.code} - {self.user.username} ({self.status})"

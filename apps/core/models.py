@@ -21,9 +21,9 @@ class Produto(models.Model):
     active = models.BooleanField(default=True)
     criada_em = models.DateTimeField(auto_now_add=True)
     atualizada_em = models.DateTimeField(auto_now=True)
-
+    
     def __str__(self):
-        return self.nome
+        return f"{self.nome} — {self.loja.nome}"
 
 
 class Cardapio(models.Model):

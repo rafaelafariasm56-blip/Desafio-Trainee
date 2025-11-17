@@ -1,40 +1,59 @@
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, status, filters, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.decorators import action
+from rest_framework.decorators import action, authentication_classes, permission_classes
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 from django.shortcuts import redirect
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-
 from apps.users.models import User
 from apps.users.serializers import UserRegisterSerializer, UserSerializer, LoginSerializer, CustomTokenObtainPairSerializer
 from apps.users.permissions import IsDonoeReadOnly
 from apps.core.models import LojaPerfil
-
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 class ApiRootView(APIView):
-    permission_classes = [AllowAny]
+    """
+    Redireciona automaticamente para o painel correto, dependendo do tipo de usuário.
+    """
 
+    authentication_classes = [] 
+    permission_classes = [permissions.AllowAny]
+    @swagger_auto_schema(
+        operation_description="Redireciona se autenticado."
+    )
     def get(self, request):
+
         if request.user.is_authenticated:
-            claims = request.auth or {}
-            if claims.get("loja"):
+
+            if hasattr(request.user, "lojaperfil"):
                 return redirect("painel-loja")
+
             return redirect("painel-usuario")
 
         return Response({
-            "login": reverse("users:login", request=request),
             "register": reverse("users:register", request=request),
+            "login": reverse("users:login", request=request),
         })
 
 
-
 class LoginView(APIView):
+    """
+    Autentica o usuário usando username e password.
+    Retorna cookies de autenticação e redireciona para o painel adequado.
+    """
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
-
+    authentication_classes = [] 
+    @swagger_auto_schema(
+        operation_description="Realiza login e retorna cookies com tokens.",
+        request_body=LoginSerializer,
+        responses={
+            200: "Login realizado com sucesso.",
+            401: "Credenciais inválidas."
+        }
+    )
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
@@ -65,6 +84,9 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    """
+    Realiza logout removendo os cookies JWT.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -77,6 +99,9 @@ class LogoutView(APIView):
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de usuários.
+    """
     queryset = User.objects.all()
     serializer_class = UserSerializer
     filter_backends = [filters.SearchFilter]
@@ -87,6 +112,8 @@ class UserViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         elif self.action in ["update", "partial_update", "destroy"]:
             return [IsAuthenticated(), IsDonoeReadOnly()]
+        elif self.action == "register":
+            return [AllowAny()]
         return [AllowAny()]
 
     def get_serializer_class(self):
@@ -102,15 +129,19 @@ class UserViewSet(viewsets.ModelViewSet):
             return User.objects.none()
 
         is_loja = claims.get("is_loja", False)
-        loja_id = claims.get("loja_id")
 
-        if is_loja:
-            return User.objects.filter(id=user.id)
-
+        # Lojas só veem elas mesmas
         return User.objects.filter(id=user.id)
 
-
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny], url_path="register")
+    @swagger_auto_schema(
+        operation_description="Registra um novo usuário.",
+        request_body=UserRegisterSerializer,
+        responses={
+            201: UserSerializer,
+            400: "Dados inválidos"
+        }
+    )
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def register(self, request):
         serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -126,7 +157,14 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class PainelUsuarioView(APIView):
+    """
+    Retorna os links disponíveis para um usuário final.
+    """
     permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="Retorna os endpoints disponíveis para um usuário final."
+    )
 
     def get(self, request):
         claims = request.auth or {}
@@ -139,11 +177,11 @@ class PainelUsuarioView(APIView):
 
         painel = {
             "area_de_vendas": reverse("produtos-list", request=request),
-            "buscar_por_loja": reverse("produtos-list", request=request),
             "metodo_de_pagamento": reverse("pedidos:pagamento-list", request=request),
-            "historico_de_pedidos": reverse("pedidos:historico-pedidos-list", request=request),
+            "pedidos": reverse("pedidos:historico-pedidos-list", request=request),
+            "endereço": reverse("pedidos:endereco-list", request=request),
             "carrinho": reverse("pedidos:carrinho-list", request=request),
-            "finalizar_pagamento": reverse("pedidos:pagamento-pagar", request=request),
+            "finalizar pagamento": reverse("pedidos:pagamento-pagar", request=request),
         }
 
         return Response({"painel_usuario": painel})
@@ -151,7 +189,14 @@ class PainelUsuarioView(APIView):
 
 
 class PainelLojaView(APIView):
+    """
+    Painel de funcionalidades exclusivas de lojas.
+    """
     permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="Retorna os endpoints disponíveis para uma loja."
+    )
 
     def get(self, request):
         claims = request.auth or {}
