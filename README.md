@@ -65,7 +65,7 @@ Esta API usa um mecanismo de autenticação seguro para clientes Web:
 1. O endpoint de login define o access_token como um Cookie HTTP Only.
 2. O JWTHeaderMiddleware (customizado) intercepta o cookie a cada requisição e o move para o cabeçalho Authorization: Bearer <token>, permitindo que o DRF o valide.
 
-###ENDPOINTS
+## ENDPOINTS
 ### 🛍️ Cliente (Consumidor)
 
 #### 🔑 Autenticação e Perfil
