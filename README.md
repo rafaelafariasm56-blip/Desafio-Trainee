@@ -74,9 +74,9 @@ Esta API usa um mecanismo de autenticação seguro para clientes Web:
 * `GET /api/users/painel/usuario/`: Ver painel do usuário
 
 #### 🏡 Endereço e Pagamento
-* `GET /api/pedidos/endereco/`: Listar endereços cadastrados
-* `POST /api/pedidos/endereco/`: Cadastrar novo endereço
-* `PUT/DELETE /api/pedidos/endereco/{id}/`: Atualizar/Excluir um endereço
+* `GET /api/pedidos/enderecos/`: Listar endereços cadastrado
+* `POST /api/pedidos/enderecos/`: Cadastrar novo endereço
+* `PUT/DELETE /api/pedidos/enderecos/{id}/`: Atualizar/Excluir um endereço
 * `POST /api/pedidos/pagamento/`: Cadastrar novo método de pagamento
 * `DELETE /api/pedidos/pagamento/{id}/`: Excluir método de pagamento
 
@@ -107,5 +107,5 @@ Esta API usa um mecanismo de autenticação seguro para clientes Web:
 
 #### 💰 Vendas e Finanças
 * `GET /api/pedidos/historico-loja/`: Listar todos os pedidos recebidos pela loja
-* `PATCH /api/pedidos/{id}/`: **Atualizar status** do pedido (e.g., `preparando`, `entregue`)
+* `PATCH /api/pedidos/historico-loja/{id}/`: **Atualizar status** do pedido (e.g., `preparando`, `entregue`)
 * `GET /api/pedidos/faturamento/`: Ver relatórios de faturamento por período
