@@ -18,35 +18,34 @@ API REST desenvolvida para um serviço de venda de comida, contendo as funcional
 Siga o passo a passo abaixo para configurar e rodar a API localmente no ambiente de desenvolvimento.
 
 #### 1. Clonar o repositório
-'''
+```
 git clone [https://github.com/rafaelafariasm56-blip/Desafio-Trainee.git](https://github.com/rafaelafariasm56-blip/Desafio-Trainee.git)
 cd Desafio-Trainee
-'''
-
+```
 ### 2. Criar e ativar Ambiente Virtual
-'''
+```
 # Cria o ambiente
 python -m venv venv
 
 # Ativação (Linux/Mac)
 source venv/bin/activate
-'''
+```
 
 ### 3. Instalar as dependências
-'''
+```
 pip install -r requirements.txt
-'''
+```
 
 ### 4. Configurar o Banco de Dados
 Comando para aplicar as migrações:
-'''
+```
 python manage.py migrate
-'''
+```
 
 ### 5. Iniciar o servidor
-'''
+```
 python manage.py runserver
-'''
+```
 A API estará acessível em: `http://localhost:8000/`
 
 ## 🔒 Acessando a Documentação
