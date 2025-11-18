@@ -58,3 +58,10 @@ Com o servidor rodando, a documentação está disponível nos seguintes formato
 | **Schema JSON** | `http://127.0.0.1:8000/swagger.json` | Download do arquivo de definição da API (para ferramentas como Postman, Insomnia ou clientes geradores de código). |
 | **Schema YAML** | `http://127.0.0.1:8000/swagger.yaml` | Download do arquivo de definição no formato YAML. |
 
+### Mecanismo de autenticação (JWT via Cookie)
+
+Esta API usa um mecanismo de autenticação seguro para clientes Web:
+
+1. O endpoint de login define o access_token como um Cookie HTTP Only.
+2. O JWTHeaderMiddleware (customizado) intercepta o cookie a cada requisição e o move para o cabeçalho Authorization: Bearer <token>, permitindo que o DRF o valide.
+
