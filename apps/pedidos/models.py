@@ -2,7 +2,6 @@ from django.conf import settings
 from django.db import models
 from apps.users.models import User
 from apps.core.models import Produto
-import uuid
 
 class Carrinho(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="carrinho")
@@ -43,7 +42,7 @@ class Pedido(models.Model):
     endereco = models.ForeignKey("users.Endereco", on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
-        return f"Pedido #{self.code} - {self.user.username} ({self.status})"
+        return f"Pedido #{self.id} - {self.user.username} ({self.status}) - R$ {self.total:.2f}"
 
 class PedidoItem(models.Model):
     pedido = models.ForeignKey("Pedido", on_delete=models.CASCADE, related_name="itens")

@@ -32,5 +32,4 @@ urlpatterns = [
     path("painel/loja/", PainelLojaView.as_view(), name="painel-loja"),
 
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger"),
-    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]

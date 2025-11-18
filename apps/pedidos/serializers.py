@@ -11,6 +11,42 @@ class CarrinhoAdicionarItemSerializer(serializers.Serializer):
     quantidade = serializers.IntegerField(min_value=1, default=1)
 
 
+class CarrinhoRemoverItemSerializer(serializers.Serializer):
+    produto = serializers.PrimaryKeyRelatedField(queryset=Produto.objects.none())
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get("request")
+        if not request:
+            return
+
+        user = request.user
+        carrinho, _ = Carrinho.objects.get_or_create(user=user)
+
+        self.fields["produto"].queryset = Produto.objects.filter(
+            carrinhoitem__carrinho=carrinho
+        )
+
+class CarrinhoAlterarQuantidadeSerializer(serializers.Serializer):
+    produto = serializers.PrimaryKeyRelatedField(queryset=Produto.objects.none())
+    quantidade = serializers.IntegerField(min_value=1)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get("request")
+        if not request:
+            return
+
+        user = request.user
+        carrinho, _ = Carrinho.objects.get_or_create(user=user)
+
+        self.fields["produto"].queryset = Produto.objects.filter(
+            carrinhoitem__carrinho=carrinho
+        )
+
+
 class CarrinhoItemSerializer(serializers.ModelSerializer):
     produto_id = serializers.IntegerField(source="produto.id", read_only=True)
     produto_nome = serializers.CharField(source="produto.nome", read_only=True)
@@ -79,6 +115,20 @@ class PedidoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Método de pagamento inválido.")
         return value
 
+
+class CancelarPedidoSerializer(serializers.Serializer):
+    pedido = serializers.PrimaryKeyRelatedField(queryset=Pedido.objects.none())
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+        if not user:
+            return
+
+        self.fields["pedido"].queryset = Pedido.objects.filter(
+            user=user,
+            status__in=["pendente", "preparando"]
+        )
 
 
 class FinalizarPagamentoSerializer(serializers.Serializer):
@@ -159,13 +209,10 @@ class FinalizarPagamentoSerializer(serializers.Serializer):
 class AtualizarStatusPedidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
-        fields = ['status']
-
-    def validate_status(self, value):
-        if value not in dict(Pedido.STATUS_CHOICES):
-            raise serializers.ValidationError("Status inválido.")
-        return value
-
+        fields = ["status"]
+        extra_kwargs = {
+            "status": {"style": {"base_template": "select.html"}}
+        }
 
 class EnderecoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -197,10 +244,12 @@ class PedidoLojaSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 class PagamentoSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())    
     class Meta:
         model = Pagamento
         fields = [
             "id",
+            "user",
             "metodo",
             "nome_no_cartao",
             "numero_cartao",

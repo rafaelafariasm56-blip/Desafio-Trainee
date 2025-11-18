@@ -10,24 +10,64 @@ class ProdutoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Produto
-        fields = ["id","nome","descricao","preco","quantidade","disponivel","criada_em","atualizada_em","loja","loja_nome"]
-        read_only_fields = ["id", "loja", "loja_nome", "criada_em", "atualizada_em"]
+        fields = [
+            "id", "nome", "descricao", "preco", "quantidade",
+            "disponivel", "criada_em", "atualizada_em",
+            "loja", "loja_nome"
+        ]
+        read_only_fields = [
+            "id", "loja", "loja_nome", "criada_em", "atualizada_em"
+        ]
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        claims = request.auth  
+
+        if not claims:
+            raise serializers.ValidationError("Token inválido ou ausente.")
+
+        if not claims.get("is_loja"):
+            raise serializers.ValidationError("Apenas lojas podem criar produtos.")
+
+        if not claims.get("loja_id"):
+            raise serializers.ValidationError("Loja não encontrada no token.")
+
+        return attrs
 
     def create(self, validated_data):
-        request = self.context.get("request")
-        user = request.user if request else None
+        request = self.context["request"]
+        claims = request.auth
 
-        if not user or not user.loja:
-            raise serializers.ValidationError("Apenas perfis de loja podem criar produtos.")
+        loja_id = claims.get("loja_id")
 
         try:
-            loja = LojaPerfil.objects.get(user=user)
+            loja = LojaPerfil.objects.get(id=loja_id)
         except LojaPerfil.DoesNotExist:
-            raise serializers.ValidationError("Perfil de loja não encontrado.")
+            raise serializers.ValidationError("Loja associada ao token não existe.")
 
         validated_data["loja"] = loja
         return super().create(validated_data)
 
+class ProdutoLeituraSerializer(serializers.ModelSerializer):
+    loja = serializers.StringRelatedField()
+    loja_nome = serializers.CharField(source="loja.nome", read_only=True)
+
+    class Meta:
+        model = Produto
+        fields = [
+            "id",
+            "nome",
+            "descricao",
+            "preco",
+            "quantidade",
+            "disponivel",
+            "criada_em",
+            "atualizada_em",
+            "loja",
+            "loja_nome",
+        ]
+        read_only_fields = fields
+        
 class CardapioSerializer(serializers.ModelSerializer):
     produtos = ProdutoSerializer(many=True, read_only=True)
 

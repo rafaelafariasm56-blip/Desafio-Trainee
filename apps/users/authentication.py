@@ -16,5 +16,4 @@ class CookieJWTAuthentication(JWTAuthentication):
             user = self.get_user(validated)
             return (user, validated)
         except Exception:
-            # Não quebra a request; apenas desconsidera o token
             return None
