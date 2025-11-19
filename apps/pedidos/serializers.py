@@ -117,19 +117,20 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 
 class CancelarPedidoSerializer(serializers.Serializer):
-    pedido = serializers.PrimaryKeyRelatedField(queryset=Pedido.objects.none())
+    pedido = serializers.PrimaryKeyRelatedField(queryset=Pedido.objects.all()) 
+
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-        if not user:
-            return
 
-        self.fields["pedido"].queryset = Pedido.objects.filter(
-            user=user,
-            status__in=["pendente", "preparando"]
-        )
-
+        if user:
+            self.fields["pedido"].queryset = Pedido.objects.filter(
+                user=user,
+                status__in=["pendente", "preparando", "Pendente", "Preparando"] 
+            )
+        else:
+            pass
 
 class FinalizarPagamentoSerializer(serializers.Serializer):
     metodo_pagamento_id = serializers.IntegerField()

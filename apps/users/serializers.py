@@ -78,13 +78,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
 
-        token["is_loja"] = user.loja  
+        is_loja = hasattr(user, "lojaperfil")
 
-        token["loja_id"] = (
-            user.lojaperfil.id if user.loja and hasattr(user, "lojaperfil") else None
-        )
+        token["is_loja"] = is_loja
+        token["loja_id"] = user.lojaperfil.id if is_loja else None
 
-        return token 
+        return token
     
 
     

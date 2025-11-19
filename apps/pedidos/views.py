@@ -7,28 +7,35 @@ from apps.users.models import Pagamento, Endereco
 from apps.core.models import Produto
 from .serializers import PedidoSerializer, CarrinhoSerializer, CarrinhoItemSerializer, CarrinhoAdicionarItemSerializer, MetodoPagamentoSerializer, PagamentoSerializer, AtualizarStatusPedidoSerializer, PedidoLojaSerializer, PagamentoSerializer, FinalizarPagamentoSerializer, FaturamentoFiltroSerializer, EnderecoSerializer, EnderecoCreateSerializer, CarrinhoRemoverItemSerializer, CarrinhoAlterarQuantidadeSerializer, CancelarPedidoSerializer
 from django.db import transaction
+from apps.core.pagination import DefaultPagination
 from rest_framework.decorators import action
 from django.db.models import Sum, Count, Avg
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-
-
+@swagger_auto_schema(tags=["Carrinho"])
 class CarrinhoViewSet(viewsets.ModelViewSet):
     """
     Endpoint para gerenciamento do carrinho de compras do usuário autenticado.
+    O usuário só pode ter um carrinho por vez.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Carrinho.objects.none()
+
         return Carrinho.objects.filter(user=self.request.user)
 
     def get_object(self):
+        """
+        Retorna o carrinho do usuário, criando automaticamente se necessário.
+        """
         carrinho, _ = Carrinho.objects.get_or_create(user=self.request.user)
         return carrinho
 
     def get_serializer(self, *args, **kwargs):
-
         kwargs.setdefault("context", {})
         kwargs["context"]["request"] = self.request
         return super().get_serializer(*args, **kwargs)
@@ -45,22 +52,43 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
 
         return CarrinhoSerializer
 
+
+    @swagger_auto_schema(
+        tags=["Carrinho"],
+        operation_description=(
+            "Gerencia o carrinho de compras do usuário autenticado.\n\n"
+            "**Funcionalidades principais:**\n"
+            "- O carrinho é criado automaticamente caso não exista\n"
+            "- Listar todos os itens do carrinho\n"
+            "- Adicionar itens\n"
+            "- Remover itens\n"
+            "- Atualizar quantidade de um item\n\n"
+            "**Regras importantes:**\n"
+            "- O usuário só pode ter itens de **uma loja por vez** no carrinho\n"
+            "- A quantidade solicitada deve respeitar o estoque disponível\n"
+        )
+    )
     def list(self, request, *args, **kwargs):
         carrinho = self.get_object()
         serializer = self.get_serializer(carrinho)
         return Response(serializer.data)
 
-
     @swagger_auto_schema(
+        tags=["Carrinho"],
+        operation_description=(
+            "Adiciona um item ao carrinho do usuário.\n\n"
+            "- Se o item já existir, sua quantidade será incrementada\n"
+            "- Só é permitido adicionar itens de **uma loja por vez**\n"
+            "- A operação falha caso a quantidade desejada exceda o estoque\n"
+        ),
         request_body=CarrinhoAdicionarItemSerializer,
         responses={
-            201: openapi.Response("Item adicionado", CarrinhoItemSerializer),
-            400: "Estoque insuficiente",
+            201: openapi.Response("Item adicionado com sucesso", CarrinhoItemSerializer),
+            400: "Estoque insuficiente ou operação inválida",
             404: "Produto não encontrado"
         }
     )
     def create(self, request, *args, **kwargs):
-
         carrinho = self.get_object()
 
         serializer = self.get_serializer(data=request.data)
@@ -74,11 +102,14 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
             if item_existente.produto.loja != produto.loja:
                 return Response(
                     {
-                        "detail": f"Você só pode adicionar itens de uma loja por vez. "
-                                  f"Seu carrinho atual contém itens da loja '{item_existente.produto.loja.nome}'. "
-                                  f"Esvazie o carrinho para comprar em '{produto.loja.nome}'."
+                        "detail": (
+                            "Você só pode adicionar itens de uma loja por vez. "
+                            f"Seu carrinho atual contém itens da loja '{item_existente.produto.loja.nome}'. "
+                            f"Esvazie o carrinho para comprar em '{produto.loja.nome}'."
+                        )
                     }
                 )
+
         if quantidade > produto.quantidade:
             return Response(
                 {"detail": f"Estoque insuficiente. Disponível: {produto.quantidade}."},
@@ -106,18 +137,18 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         )
 
     @swagger_auto_schema(
+        tags=["Carrinho"],
         method="post",
-        operation_description="Remove um item presente no carrinho.",
+        operation_description="Remove um item do carrinho. É necessário informar o produto.",
         request_body=CarrinhoRemoverItemSerializer,
         responses={
-            204: "Item removido",
-            400: "produto é obrigatório",
-            404: "Produto não está no carrinho"
+            204: "Item removido com sucesso",
+            400: "Requisição inválida",
+            404: "Item não encontrado no carrinho"
         }
     )
     @action(detail=False, methods=["post"], url_path="remover-item")
     def remover_item(self, request):
-
         carrinho = self.get_object()
 
         serializer = self.get_serializer(data=request.data)
@@ -138,18 +169,21 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags=["Carrinho"],
         method="post",
-        operation_description="Atualiza a quantidade de um item que já está no carrinho.",
+        operation_description=(
+            "Atualiza a quantidade de um item no carrinho.\n"
+            "- A operação falha se exceder o estoque disponível."
+        ),
         request_body=CarrinhoAlterarQuantidadeSerializer,
         responses={
-            200: openapi.Response("Quantidade atualizada", CarrinhoItemSerializer),
+            200: openapi.Response("Quantidade atualizada com sucesso", CarrinhoItemSerializer),
             400: "Estoque insuficiente",
             404: "Item não encontrado"
         }
     )
     @action(detail=False, methods=["post"], url_path="atualizar-quantidade")
     def atualizar_quantidade(self, request):
-
         carrinho = self.get_object()
 
         serializer = self.get_serializer(data=request.data)
@@ -180,7 +214,7 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         )
     
 
-
+@swagger_auto_schema(tags=["Pedidos"])
 class PedidoViewSet(viewsets.ModelViewSet):
     """
     Endpoint responsável por listar e criar pedidos do usuário autenticado.
@@ -196,6 +230,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags=["Pedidos"],
         operation_summary="Listar pedidos do usuário autenticado",
         operation_description="Retorna a lista de pedidos feitos pelo usuário, ordenados do mais recente para o mais antigo.",
         responses={200: PedidoSerializer(many=True)}
@@ -205,6 +240,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags=["Pedidos"],
         operation_summary="Criar pedido a partir do carrinho",
         operation_description="Gera um pedido com base nos itens do carrinho do usuário autenticado. "
                               "Após criar o pedido, o carrinho é esvaziado.",
@@ -266,6 +302,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
         )
 
     @swagger_auto_schema(
+        tags=["Pedidos"],
         operation_summary="Detalhes de um pedido",
         operation_description="Retorna todas as informações de um pedido específico do usuário.",
         responses={200: PedidoSerializer()}
@@ -273,14 +310,14 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
-
-
+@swagger_auto_schema(tags=["Pagamento"])
 class MetodoPagamentoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Pagamento.objects.all()
     serializer_class = PagamentoSerializer
     permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         operation_summary="Listar métodos de pagamento",
         operation_description=(
             "Retorna todos os métodos de pagamento disponíveis no sistema. "
@@ -297,6 +334,7 @@ class MetodoPagamentoViewSet(viewsets.ReadOnlyModelViewSet):
         return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         operation_summary="Detalhar método de pagamento",
         operation_description=(
             "Retorna detalhes de um método de pagamento específico pelo seu ID. "
@@ -312,10 +350,27 @@ class MetodoPagamentoViewSet(viewsets.ReadOnlyModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
         
-
+@swagger_auto_schema(tags=["Histórico Usuário"])
 class HistoricoPedidoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PedidoSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = DefaultPagination
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Pedido.objects.none()
+
+        status_visiveis = [
+            "entregue", "Entregue", 
+            "cancelado", "Cancelado", 
+            "pendente", "Pendente", 
+            "a caminho", "A caminho", "A Caminho",
+            "preparando", "Preparando"
+        ]
+
+        return Pedido.objects.filter(
+            user=self.request.user,
+            status__in=status_visiveis
+        ).order_by("-criado_em")
 
     def get_serializer_class(self):
         if self.action == "cancelar":
@@ -327,50 +382,41 @@ class HistoricoPedidoViewSet(viewsets.ReadOnlyModelViewSet):
             kwargs.setdefault("user", self.request.user)
         return super().get_serializer(*args, **kwargs)
 
-    def get_queryset(self):
-        return Pedido.objects.filter(
-            user=self.request.user,
-            status__in=["entregue", "cancelado", "pendente", "a caminho", "preparando"]
-        ).order_by("-criado_em")
-
     @swagger_auto_schema(
+        tags=["Histórico Usuário"],
         operation_summary="Detalhar pedido específico",
-        responses={200: PedidoSerializer()}
+        responses={200: PedidoSerializer}
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags=["Histórico Usuário"],
         method="post",
         operation_summary="Cancelar um pedido",
+        operation_description="Selecione o ID do pedido que deseja cancelar.",
         request_body=CancelarPedidoSerializer,
-        responses={200: PedidoSerializer()}
+        responses={
+            200: PedidoSerializer, 
+            400: "Erro: Pedido inválido ou não pertence ao usuário"
+        }
     )
     @action(detail=False, methods=["post"], url_path="cancelar")
     def cancelar(self, request):
-
-        serializer = CancelarPedidoSerializer(
-            data=request.data,
-            user=request.user
-        )
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         pedido = serializer.validated_data["pedido"]
-
-        if pedido.status not in ["pendente", "preparando"]:
-            return Response(
-                {"erro": "Este pedido não pode mais ser cancelado."},
-                status=400
-            )
-
-        pedido.status = "cancelado"
+        pedido.status = "cancelado" 
         pedido.save()
 
         return Response(PedidoSerializer(pedido).data)
-
+    
+@swagger_auto_schema(tags=["Histórico Loja"])
 class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixins.UpdateModelMixin,viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "patch", "put", "head", "options"]
+    pagination_class = DefaultPagination
 
     def get_serializer_class(self):
         if self.action in ["partial_update", "update"]:
@@ -378,12 +424,16 @@ class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixin
         return PedidoLojaSerializer
 
     def get_queryset(self):
-        loja = getattr(self.request.user, "lojaperfil", None)
-        if not loja:
+        payload = self.request.auth or {}
+        loja_id = payload.get("loja_id")
+
+        if not loja_id:
             return Pedido.objects.none()
-        return Pedido.objects.filter(loja=loja).order_by("-criado_em")
+
+        return Pedido.objects.filter(loja_id=loja_id).order_by("-criado_em")
 
     @swagger_auto_schema(
+        tags = ["Histórico Loja"],
         operation_summary="Listar pedidos da loja",
         responses={200: PedidoLojaSerializer(many=True)}
     )
@@ -391,6 +441,7 @@ class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixin
         return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Histórico Loja"],
         operation_summary="Detalhar um pedido",
         responses={200: PedidoLojaSerializer()}
     )
@@ -398,15 +449,18 @@ class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixin
         return super().retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(
-        operation_summary="Atualizar status do pedido",
+        tags=["Histórico Loja"],
+        operation_summary="Atualizar status do pedido (parcial)",
+        operation_description="Permite atualizar parcialmente o status de um pedido da loja.",
         request_body=AtualizarStatusPedidoSerializer,
         responses={200: PedidoLojaSerializer()}
     )
     def partial_update(self, request, *args, **kwargs):
         pedido = self.get_object()
-        loja_usuario = getattr(request.user, "lojaperfil", None)
+        payload = request.auth or {}
+        loja_id = payload.get("loja_id")
 
-        if not loja_usuario or pedido.loja != loja_usuario:
+        if not loja_id or pedido.loja_id != loja_id:
             return Response(
                 {"detail": "Usuário não pertence à loja do pedido."},
                 status=status.HTTP_403_FORBIDDEN
@@ -419,18 +473,27 @@ class HistoricoLojaViewSet(mixins.ListModelMixin,mixins.RetrieveModelMixin,mixin
         pedido.save()
 
         return Response(PedidoLojaSerializer(pedido).data)
-
+    
+    @swagger_auto_schema(
+        tags=["Histórico Loja"],
+        operation_summary="Atualizar status do pedido (completo)",
+        operation_description="Atualização completa do status de um pedido da loja.",
+        request_body=AtualizarStatusPedidoSerializer,
+        responses={200: PedidoLojaSerializer()}
+    )
     def update(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
 
         
-
+@swagger_auto_schema(tags=["Pedidos"])
 class PedidoLojaViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PedidoLojaSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = DefaultPagination
 
 
     @swagger_auto_schema(
+        tags=["Pedidos"],
         operation_summary="Listar pedidos da loja",
         operation_description=(
             "Retorna todos os pedidos associados à loja definida no token JWT "
@@ -452,6 +515,7 @@ class PedidoLojaViewSet(viewsets.ReadOnlyModelViewSet):
 
 
     @swagger_auto_schema(
+        tags=["Pedidos"],
         operation_summary="Detalhar pedido da loja",
         operation_description=(
             "Retorna os detalhes de um pedido que pertence à loja do token JWT (`loja_id`). "
@@ -467,6 +531,7 @@ class PedidoLojaViewSet(viewsets.ReadOnlyModelViewSet):
 
  
     @swagger_auto_schema(
+        tags=["Pedidos"],
         operation_summary="Atualizar status do pedido",
         operation_description=(
             "Atualiza o status de um pedido pertencente à loja identificada pelo token JWT (`loja_id`). "
@@ -502,7 +567,7 @@ class PedidoLojaViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response({"mensagem": "Status atualizado com sucesso."})
     
-
+@swagger_auto_schema(tags=["Pedidos"])
 class MeusPedidosViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Endpoints do cliente para visualizar e cancelar pedidos.
@@ -511,13 +576,19 @@ class MeusPedidosViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
+        tags = ["Pedidos"],
         operation_summary="Listar pedidos do cliente",
         responses={200: PedidoSerializer(many=True)}
     )
+
     def get_queryset(self):
-        return Pedido.objects.filter(user=self.request.user).order_by("-criado_em")
+        if getattr(self, "swagger_fake_view", False):
+            return Pedido.objects.none()
+
+        return Pedido.objects.filter(user=self.request.user)
 
     @swagger_auto_schema(
+        tags = ["Pedidos"],
         method="patch",
         operation_summary="Cancelar pedido",
         operation_description=(
@@ -548,12 +619,13 @@ class MeusPedidosViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(PedidoSerializer(pedido).data)
 
 
-
+@swagger_auto_schema(tags=["Endereço"])
 class EnderecoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsDonoeReadOnly]
 
 
     @swagger_auto_schema(
+        tags = ["Endereço"],
         operation_summary="Listar endereços do usuário",
         operation_description="Retorna todos os endereços cadastrados pelo usuário autenticado.",
         responses={200: EnderecoSerializer(many=True)}
@@ -562,6 +634,9 @@ class EnderecoViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Endereco.objects.none()
+
         return Endereco.objects.filter(user=self.request.user)
 
 
@@ -572,6 +647,7 @@ class EnderecoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags = ["Endereço"],    
         operation_summary="Criar novo endereço",
         operation_description="Adiciona um novo endereço ao perfil do usuário autenticado.",
         request_body=EnderecoCreateSerializer,
@@ -596,6 +672,7 @@ class EnderecoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags = ["Endereço"],
         operation_summary="Detalhar um endereço",
         operation_description="Retorna os dados completos de um endereço específico do usuário.",
         responses={200: EnderecoSerializer()}
@@ -605,6 +682,7 @@ class EnderecoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags = ["Endereço"],
         operation_summary="Atualizar um endereço",
         operation_description="Atualiza todos os campos de um endereço já cadastrado.",
         request_body=EnderecoSerializer,
@@ -618,6 +696,7 @@ class EnderecoViewSet(viewsets.ModelViewSet):
 
 
     @swagger_auto_schema(
+        tags = ["Endereço"],
         operation_summary="Atualização parcial de endereço",
         operation_description="Atualiza apenas alguns campos de um endereço do usuário.",
         request_body=EnderecoSerializer,
@@ -630,6 +709,7 @@ class EnderecoViewSet(viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Endereço"],
         operation_summary="Excluir um endereço",
         operation_description="Remove um endereço do usuário definitivamente.",
         responses={204: "Endereço removido com sucesso"}
@@ -637,15 +717,19 @@ class EnderecoViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
-
+@swagger_auto_schema(tags=["Pagamento"])
 class PagamentoViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Pagamento.objects.none()
+
         return Pagamento.objects.filter(user=self.request.user)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         operation_summary="Listar métodos de pagamento",
         operation_description="Retorna todos os métodos de pagamento cadastrados pelo usuário.",
         responses={200: PagamentoSerializer(many=True)},
@@ -654,6 +738,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return super().list(*args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],            
         operation_summary="Criar método de pagamento",
         request_body=PagamentoSerializer,
         responses={201: PagamentoSerializer},
@@ -662,6 +747,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         operation_summary="Atualizar método de pagamento",
         request_body=PagamentoSerializer,
         responses={200: PagamentoSerializer},
@@ -670,6 +756,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         operation_summary="Atualizar parcialmente",
         request_body=PagamentoSerializer,
         responses={200: PagamentoSerializer},
@@ -678,6 +765,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         operation_summary="Remover método de pagamento",
         operation_description="Remove logicamente (ativo=False).",
         responses={200: openapi.Response("Método de pagamento removido.")},
@@ -689,6 +777,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return Response({"mensagem": "Método de pagamento removido."})
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         method="get",
         operation_summary="Listar métodos de pagamento ativos (dropdown)",
         responses={200: MetodoPagamentoSerializer(many=True)},
@@ -705,6 +794,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @swagger_auto_schema(
+        tags = ["Pagamento"],
         method="post",
         operation_summary="Finalizar pagamento",
         operation_description="Realiza o pagamento dos pedidos selecionados.",
@@ -746,7 +836,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         )
 
 
-
+@swagger_auto_schema(tags=["Faturamento"])
 class FaturamentoViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -762,6 +852,7 @@ class FaturamentoViewSet(viewsets.ViewSet):
         return serializer_class(*args, **kwargs)
 
     @swagger_auto_schema(
+        tags=["Faturamento"],
         method="get",
         operation_summary="Consultar faturamento por período (GET)",
         operation_description=(
@@ -807,6 +898,7 @@ class FaturamentoViewSet(viewsets.ViewSet):
         }
     )
     @swagger_auto_schema(
+        tags=["Faturamento"],
         method="post",
         operation_summary="Consultar faturamento por período (POST)",
         operation_description=(
@@ -848,13 +940,13 @@ class FaturamentoViewSet(viewsets.ViewSet):
         loja_id = claims.get("loja_id")
 
         if not loja_id:
-             return Response(
-                 {"detail": "Apenas lojas podem acessar o faturamento."},
-                 status=status.HTTP_403_FORBIDDEN
-             )
+            return Response(
+                {"detail": "Apenas lojas podem acessar o faturamento."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         pedidos = Pedido.objects.filter(
-            loja_id=loja_id,  
+            loja_id=loja_id,
             status="entregue",
             criado_em__date__range=[data_inicial, data_final]
         )

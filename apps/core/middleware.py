@@ -4,7 +4,9 @@ class JWTHeaderMiddleware:
         self.PUBLIC_PATHS = (
             "/api/users/register/",
             "/api/users/login/",
-            "/swagger/", 
+            "/swagger",
+            "/redoc",
+            "/api/schema",
         )
 
     def __call__(self, request):
