@@ -69,6 +69,16 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         produto = serializer.validated_data["produto"]
         quantidade = serializer.validated_data["quantidade"]
 
+        if carrinho.items.exists():
+            item_existente = carrinho.items.first()
+            if item_existente.produto.loja != produto.loja:
+                return Response(
+                    {
+                        "detail": f"Você só pode adicionar itens de uma loja por vez. "
+                                  f"Seu carrinho atual contém itens da loja '{item_existente.produto.loja.nome}'. "
+                                  f"Esvazie o carrinho para comprar em '{produto.loja.nome}'."
+                    }
+                )
         if quantidade > produto.quantidade:
             return Response(
                 {"detail": f"Estoque insuficiente. Disponível: {produto.quantidade}."},
@@ -217,7 +227,13 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         user = request.user
         metodo_pagamento_id = request.data.get("metodo_pagamento")
-
+        try:
+            endereco = Endereco.objects.get(user=user)
+        except Endereco.DoesNotExist:
+            return Response(
+                {"detail": "É necessário cadastrar um endereço de entrega antes de finalizar o pedido."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         carrinho = Carrinho.objects.filter(user=user).first()
         if not carrinho or not carrinho.items.exists():
             return Response(
@@ -565,6 +581,14 @@ class EnderecoViewSet(viewsets.ModelViewSet):
         }
     )
     def create(self, request, *args, **kwargs):
+        if Endereco.objects.filter(user=request.user).exists():
+                    return Response(
+                        {
+                            "detail": "Você já possui um endereço cadastrado. "
+                                      "Edite o endereço existente"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
@@ -814,19 +838,23 @@ class FaturamentoViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=["get", "post"])
     def periodo(self, request):
-
         dados = request.query_params if request.method == "GET" else request.data
-
         serializer = self.get_serializer(data=dados)
         serializer.is_valid(raise_exception=True)
 
         data_inicial = serializer.validated_data["data_inicial"]
         data_final = serializer.validated_data["data_final"]
+        claims = request.auth or {}
+        loja_id = claims.get("loja_id")
 
-        user = request.user
+        if not loja_id:
+             return Response(
+                 {"detail": "Apenas lojas podem acessar o faturamento."},
+                 status=status.HTTP_403_FORBIDDEN
+             )
 
         pedidos = Pedido.objects.filter(
-            loja=user.lojaperfil,
+            loja_id=loja_id,  
             status="entregue",
             criado_em__date__range=[data_inicial, data_final]
         )

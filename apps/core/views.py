@@ -9,7 +9,6 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Produto, LojaPerfil
 from .serializers import ProdutoSerializer
 from apps.users.permissions import IsLoja
-from apps.users.authentication import CookieJWTAuthentication
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -20,7 +19,6 @@ class ProdutoViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nome", "descricao", "loja__nome"]
     ordering_fields = ["criada_em", "nome", "preco"]
-    authentication_classes = [CookieJWTAuthentication]
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
@@ -104,7 +102,6 @@ class ProdutoViewSet(viewsets.ModelViewSet):
 
 class PagamentoListCreateView(generics.ListCreateAPIView):
     serializer_class = PagamentoSerializer
-    authentication_classes = [CookieJWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     @swagger_auto_schema(operation_description="Lista métodos de pagamento do usuário logado.", responses={200: PagamentoSerializer(many=True)})
@@ -127,7 +124,6 @@ class PagamentoListCreateView(generics.ListCreateAPIView):
 
 class PagamentoDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PagamentoSerializer
-    authentication_classes = [CookieJWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -182,7 +178,6 @@ class LojaViewSet(viewsets.ReadOnlyModelViewSet):
 
 class CardapioViewSet(viewsets.ModelViewSet):
     serializer_class = ProdutoSerializer
-    authentication_classes = [CookieJWTAuthentication]
 
     def get_permissions(self):
         claims = self.request.auth

@@ -39,12 +39,12 @@ AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend']
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'apps.core.middleware.JWTHeaderMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.core.middleware.JWTHeaderMiddleware',
 ]
 
 ROOT_URLCONF = 'venda.urls'
@@ -99,8 +99,7 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "apps.users.authentication.CookieJWTAuthentication",
-        #"rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
@@ -112,9 +111,11 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
+    "TOKEN_OBTAIN_SERIALIZER": "apps.users.serializers.CustomTokenObtainPairSerializer",
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
 LOGIN_REDIRECT_URL = '/api/users/painel/usuario/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

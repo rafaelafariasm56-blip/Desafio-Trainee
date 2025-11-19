@@ -84,6 +84,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             user.lojaperfil.id if user.loja and hasattr(user, "lojaperfil") else None
         )
 
-        return token
+        return token 
+    
 
     
