@@ -29,6 +29,9 @@ python -m venv venv
 
 # Ativação (Linux/Mac)
 source venv/bin/activate
+
+# Ativação (Windows)
+venv\Scripts\activate.bat
 ```
 
 ### 3. Instalar as dependências
