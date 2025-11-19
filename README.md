@@ -19,7 +19,7 @@ Siga o passo a passo abaixo para configurar e rodar a API localmente no ambiente
 
 #### 1. Clonar o repositório
 ```
-git clone [https://github.com/rafaelafariasm56-blip/Desafio-Trainee.git](https://github.com/rafaelafariasm56-blip/Desafio-Trainee.git)
+git clone https://github.com/rafaelafariasm56-blip/Desafio-Trainee.git
 cd Desafio-Trainee
 ```
 ### 2. Criar e ativar Ambiente Virtual
