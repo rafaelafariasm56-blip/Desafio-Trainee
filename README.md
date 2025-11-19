@@ -58,7 +58,7 @@ Com o servidor rodando, a documentação está disponível nos seguintes formato
 | Formato | URL | Uso |
 | :--- | :--- | :--- |
 | **Swagger UI** | `http://127.0.0.1:8000/swagger/` | **Visualização interativa** e envio de requisições. |
-| **Schema JSON** | `http://127.0.0.1:8000/swagger.json` | Download do arquivo de definição da API (para ferramentas como Postman, Insomnia ou clientes geradores de código). |
+| **Schema JSON** | `http://127.0.0.1:8000/swagger.json` | Download do arquivo de definição da API. |
 | **Schema YAML** | `http://127.0.0.1:8000/swagger.yaml` | Download do arquivo de definição no formato YAML. |
 
 ### Mecanismo de autenticação (JWT via Cookie)
@@ -86,11 +86,13 @@ Esta API usa um mecanismo de autenticação seguro para clientes Web:
 #### 🛒 Compras e Pedidos
 * `GET /api/core/produtos/`: Listar todos os produtos disponíveis
 * `GET /api/pedidos/carrinho/`: Visualizar itens do carrinho
-* `POST /api/pedidos/carrinho/`: Adicionar item ao carrinho ou atualizar quantidade
-* `DELETE /api/pedidos/carrinho/{id}/`: Remover um item do carrinho
+* `POST /api/pedidos/carrinho/`: Adicionar item ao carrinho
+* `POST /api/pedidos/carrinho/atualizar-quantidade/`: Atualizar quantidade de item no carrinho
+* `POST /api/pedidos/carrinho/remover-item/`: Remover um item do carrinho
 * `POST /api/pedidos/pagamento/pagar/`: **Finalizar compra** (Converter carrinho em pedido)
 * `GET /api/pedidos/historico-pedidos/`: Listar histórico de pedidos realizados
 * `GET /api/pedidos/historico-pedidos/{id}/`: Ver detalhes e status de um pedido
+* `POST /api/pedidos/historico-pedidos/cancelar/`: Cancelar um pedido
 
 ---
 
