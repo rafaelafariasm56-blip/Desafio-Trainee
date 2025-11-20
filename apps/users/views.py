@@ -165,13 +165,15 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserRegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        if hasattr(user, "loja"):
+
+        if getattr(user, "loja", False):
+            from apps.core.models import LojaPerfil
             LojaPerfil.objects.get_or_create(user=user, nome=user.username)
+
         return Response({
             "message": "Usuário registrado com sucesso!",
             "user": UserSerializer(user).data,
         }, status=status.HTTP_201_CREATED)
-
 
 @swagger_auto_schema(tags=["Painel do Usuário"])
 class PainelUsuarioView(APIView):

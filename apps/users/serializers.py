@@ -19,7 +19,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         validate_password(value)
         return value
 
-    def create(self, validated_data):  
+    def create(self, validated_data):
         endereco_data = validated_data.pop("endereco", None)
 
         user = User(
@@ -27,9 +27,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             email=validated_data['email'],
             nome=validated_data['nome'],
             loja=validated_data.get('loja', False),
-            is_active=True,  
+            is_active=True,
         )
-        user.set_password(validated_data['password'])  
+        user.set_password(validated_data['password'])
         user.save()
 
         if endereco_data:
@@ -77,8 +77,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-
-        is_loja = hasattr(user, "lojaperfil")
+        is_loja = user.loja
 
         token["is_loja"] = is_loja
         token["loja_id"] = user.lojaperfil.id if is_loja else None
