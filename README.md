@@ -59,7 +59,7 @@ Com o servidor rodando, a documentação está disponível nos seguintes formato
 | **Swagger UI** | `http://127.0.0.1:8000/swagger/` | **Visualização interativa** e envio de requisições. |
 | **Schema JSON** | `http://127.0.0.1:8000/swagger.json` | Download do arquivo de definição da API. |
 | **Schema YAML** | `http://127.0.0.1:8000/swagger.yaml` | Download do arquivo de definição no formato YAML. |
-
+| **Redoc** | `http://127.0.0.1:8000/redoc` | Documentação amigável para consumo da API. |
 ### Mecanismo de autenticação (JWT via Cookie)
 
 Esta API usa um mecanismo de autenticação seguro para clientes Web:
