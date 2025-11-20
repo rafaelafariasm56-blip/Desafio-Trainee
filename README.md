@@ -6,12 +6,11 @@ API REST desenvolvida para um serviço de venda de comida, contendo as funcional
 
 | Biblioteca | Versão | Função Principal no Projeto |
 | :--- | :--- | :--- |
-| **Django** | `5.2.6` | **Framework Web Core**. |
-| **Django REST Framework** | `3.16.1` | Criação de Endpoints RESTful. |
-| **drf-yasg** | `1.21.11` | Geração da **Documentação Swagger/OpenAPI**. |
-| **djangorestframework_simplejwt** | `5.5.1` | **Autenticação JWT** (usado via Cookies customizados). |
-| **django-filter** | `25.2` | Implementação de filtros em Views. |
-| **PyJWT** | `2.10.1` | Manipulação de tokens JSON Web Token. |
+| **Django** | `4.2.6` | **Framework Web Core**. |
+| **Django REST Framework** | `3.15.2` | Criação de Endpoints RESTful. |
+| **drf-yasg** | `1.21.10` | Geração da **Documentação Swagger/OpenAPI**. |
+| **djangorestframework_simplejwt** | `5.3.1` | **Autenticação JWT** (usado via Cookies customizados). |
+| **PyJWT** | `2.9.0` | Manipulação de tokens JSON Web Token. |
 
 ## ⚡ Instalação e Execução
 
@@ -60,7 +59,7 @@ Com o servidor rodando, a documentação está disponível nos seguintes formato
 | **Swagger UI** | `http://127.0.0.1:8000/swagger/` | **Visualização interativa** e envio de requisições. |
 | **Schema JSON** | `http://127.0.0.1:8000/swagger.json` | Download do arquivo de definição da API. |
 | **Schema YAML** | `http://127.0.0.1:8000/swagger.yaml` | Download do arquivo de definição no formato YAML. |
-
+| **Redoc** | `http://127.0.0.1:8000/redoc` | Documentação amigável para consumo da API. |
 ### Mecanismo de autenticação (JWT via Cookie)
 
 Esta API usa um mecanismo de autenticação seguro para clientes Web:
