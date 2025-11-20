@@ -6,12 +6,11 @@ API REST desenvolvida para um serviço de venda de comida, contendo as funcional
 
 | Biblioteca | Versão | Função Principal no Projeto |
 | :--- | :--- | :--- |
-| **Django** | `5.2.6` | **Framework Web Core**. |
-| **Django REST Framework** | `3.16.1` | Criação de Endpoints RESTful. |
-| **drf-yasg** | `1.21.11` | Geração da **Documentação Swagger/OpenAPI**. |
-| **djangorestframework_simplejwt** | `5.5.1` | **Autenticação JWT** (usado via Cookies customizados). |
-| **django-filter** | `25.2` | Implementação de filtros em Views. |
-| **PyJWT** | `2.10.1` | Manipulação de tokens JSON Web Token. |
+| **Django** | `4.2.6` | **Framework Web Core**. |
+| **Django REST Framework** | `3.15.2` | Criação de Endpoints RESTful. |
+| **drf-yasg** | `1.21.10` | Geração da **Documentação Swagger/OpenAPI**. |
+| **djangorestframework_simplejwt** | `5.3.1` | **Autenticação JWT** (usado via Cookies customizados). |
+| **PyJWT** | `2.9.0` | Manipulação de tokens JSON Web Token. |
 
 ## ⚡ Instalação e Execução
 
